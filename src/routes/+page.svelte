@@ -65,6 +65,8 @@
 	let key = $state('C');
 	let scale = $state<Scale>('Natural Minor');
 	let allowNonScaleNotes = $state(true);
+	let isPainting = $state(false);
+	let paintTargetState = $state(true);
 
 	let selectedPatternId = $derived(patternIdSequence[selectedSequenceIndex] ?? PATTERN_IDS[0]);
 
@@ -273,17 +275,11 @@
 		osc.stop(time + duration + 0.05);
 	}
 
-	function toggleCell(step: number, pitchIndex: number) {
-		if (!allowNonScaleNotes && !isInScale(pitchIndex)) {
-			return;
-		}
-
+	function setCell(step: number, pitchIndex: number, state: boolean) {
+		if (!allowNonScaleNotes && !isInScale(pitchIndex)) return;
 		const pattern = patterns.find((p) => p.id === displayedPatternId);
-		if (!pattern || step >= pattern.steps.length) {
-			return;
-		}
-
-		pattern.steps[step].pitches[pitchIndex] = !pattern.steps[step].pitches[pitchIndex];
+		if (!pattern || step >= pattern.steps.length) return;
+		pattern.steps[step].pitches[pitchIndex] = state;
 	}
 
 	function stepDurationSeconds() {
@@ -401,6 +397,9 @@
 		e.preventDefault();
 		if (isPlaying) stop();
 		else start();
+	}}
+	on:mouseup={() => {
+		isPainting = false;
 	}}
 />
 
@@ -540,7 +539,9 @@
 		</section>
 
 		<section
-			class="flex gap-2 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/60 p-3 shadow-lg shadow-black/40"
+			class="flex gap-2 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/60 p-3 shadow-lg shadow-black/40 {isPainting
+				? 'cursor-crosshair'
+				: ''}"
 		>
 			<div class="flex max-h-[600px] flex-col gap-0.5 overflow-y-auto pt-6 pb-6">
 				{#each [...Array(NUM_PITCHES).keys()] as pitchIndex (pitchIndex)}
@@ -565,8 +566,19 @@
 								{@const isDisabled = !allowNonScaleNotes && !isInScale(pitchIndex)}
 								<button
 									type="button"
-									on:click={() => toggleCell(stepIndex, pitchIndex)}
 									disabled={isDisabled}
+									on:mousedown={(e) => {
+										if (isDisabled) return;
+										e.preventDefault();
+										paintTargetState = !column.pitches[pitchIndex];
+										setCell(stepIndex, pitchIndex, paintTargetState);
+										isPainting = true;
+									}}
+									on:mouseenter={() => {
+										if (isPainting && !isDisabled) {
+											setCell(stepIndex, pitchIndex, paintTargetState);
+										}
+									}}
 									class={`h-8 w-8 flex-shrink-0 rounded-sm border text-xs transition
 										${getCellClasses(pitchIndex, column.pitches[pitchIndex])}
 										${isPlayingThisStep ? 'ring-2 ring-emerald-400/80 ring-offset-2 ring-offset-slate-900' : ''}
