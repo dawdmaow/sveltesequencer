@@ -5,6 +5,8 @@
 	const STEPS_PER_BEAT = 4;
 	const NUM_PITCHES = 12;
 	const BASE_MIDI_NOTE = 60; // C4
+	const MIN_BPM = 40;
+	const MAX_BPM = 300;
 
 	interface Step {
 		pitches: boolean[];
@@ -31,6 +33,13 @@
 	let _audioCtxCache: AudioContext | null = null; // browser internal
 
 	const noteNames = ['C4', 'C#4', 'D4', 'D#4', 'E4', 'F4', 'F#4', 'G4', 'G#4', 'A4', 'A#4', 'B4'];
+
+	function clampBpm(value: number): number {
+		if (!Number.isFinite(value)) return MIN_BPM;
+		if (value < MIN_BPM) return MIN_BPM;
+		if (value > MAX_BPM) return MAX_BPM;
+		return value;
+	}
 
 	function midiToFreq(midi: number) {
 		return 440 * 2 ** ((midi - 69) / 12);
@@ -68,7 +77,8 @@
 	}
 
 	function stepDurationSeconds() {
-		return 60 / (bpm * STEPS_PER_BEAT);
+		const numericBpm = clampBpm(Number(bpm));
+		return 60 / (numericBpm * STEPS_PER_BEAT);
 	}
 
 	function scheduleStep(step: number) {
@@ -153,9 +163,17 @@
 				<input
 					id="bpm"
 					type="number"
-					min="40"
-					max="240"
+					min={MIN_BPM}
+					max={MAX_BPM}
 					bind:value={bpm}
+					on:blur={() => {
+						bpm = clampBpm(bpm);
+					}}
+					on:keydown={(event) => {
+						if (event.key === 'Enter') {
+							bpm = clampBpm(bpm);
+						}
+					}}
 					class="w-20 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-right text-sm
 						focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
 				/>
