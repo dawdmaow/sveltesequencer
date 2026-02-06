@@ -52,6 +52,7 @@
 	let stepsPerBeat = 4;
 	let key = 'C';
 	let scale: Scale = 'Natural Minor';
+	let allowNonScaleNotes = true;
 
 	let timeoutId: number | null = null; // browser internal for the step scheduler
 	let _audioCtxCache: AudioContext | null = null; // browser internal
@@ -210,6 +211,9 @@
 	}
 
 	function toggleCell(step: number, pitchIndex: number) {
+		if (!allowNonScaleNotes && !isInScale(pitchIndex)) {
+			return;
+		}
 		notes.steps[step].pitches[pitchIndex] = !notes.steps[step].pitches[pitchIndex];
 		notes = notes;
 	}
@@ -390,6 +394,18 @@
 			</div>
 
 			<div class="flex items-center gap-2 text-xs text-slate-400">
+				<label class="flex cursor-pointer items-center gap-2">
+					<input
+						type="checkbox"
+						bind:checked={allowNonScaleNotes}
+						class="rounded border-slate-700 bg-slate-900 text-emerald-500
+							focus:ring-2 focus:ring-emerald-500/70 focus:ring-offset-0"
+					/>
+					<span class="text-slate-300">Allow non-scale notes</span>
+				</label>
+			</div>
+
+			<div class="flex items-center gap-2 text-xs text-slate-400">
 				<button
 					type="button"
 					on:click={clearPattern}
@@ -415,9 +431,11 @@
 						</div>
 						<div class="flex gap-0.5">
 							{#each notes.steps.slice(0, totalSteps()) as column, stepIndex (stepIndex)}
+								{@const isDisabled = !allowNonScaleNotes && !isInScale(pitchIndex)}
 								<button
 									type="button"
 									on:click={() => toggleCell(stepIndex, pitchIndex)}
+									disabled={isDisabled}
 									class={`h-8 w-8 flex-shrink-0 rounded-sm border text-xs transition
 										${getCellClasses(pitchIndex, column.pitches[pitchIndex])}
 										${
@@ -425,6 +443,7 @@
 												? 'ring-2 ring-emerald-400/80 ring-offset-2 ring-offset-slate-900'
 												: ''
 										}
+										${isDisabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}
 									`}
 									aria-label="Toggle note"
 								></button>
