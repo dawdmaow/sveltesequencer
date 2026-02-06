@@ -53,24 +53,25 @@
 		| 'Blues'
 		| 'Chromatic';
 
-	// TODO: unnecessary defaults
 	let patterns = $state<Pattern[]>([]);
 	let patternIdSequence = $state<string[]>([]);
+	let selectedSequenceIndex = $state(0);
 	let isPlaying = $state(false);
-	let currentStep = $state(0);
+	let currentStep = $state(0); // TODO: this should be local; need to store current sequence index as well (and give it to playStep())
 	let bpm = $state(120);
 	let beatsPerMeasure = $state(4);
 	let stepsPerBeat = $state(4);
 	let numMeasures = $state(1);
-	let selectedPatternId = $state('A');
 	let key = $state('C');
 	let scale = $state<Scale>('Natural Minor');
 	let allowNonScaleNotes = $state(true);
 
+	let selectedPatternId = $derived(patternIdSequence[selectedSequenceIndex] ?? PATTERN_IDS[0]);
+
 	function reset() {
-		patterns = [createPattern('A', 4, 4)];
-		patternIdSequence = [patterns[0].id];
-		selectedPatternId = 'A';
+		patterns = PATTERN_IDS.map((id) => createPattern(id, 4, 4));
+		patternIdSequence = ['A'];
+		selectedSequenceIndex = 0;
 		key = 'C';
 		scale = 'Natural Minor';
 		allowNonScaleNotes = true;
@@ -222,21 +223,13 @@
 		return index >= 0 && index < colors.length ? colors[index] : 'bg-slate-600';
 	}
 
-	function cyclePatternAtPosition(seqIndex: number) {
-		if (seqIndex >= patternIdSequence.length || Object.keys(patterns).length === 0) return;
+	function cyclePatternAtPosition(seqIndex: number, direction: 1 | -1) {
+		if (seqIndex >= patternIdSequence.length) return;
 		const currentId = patternIdSequence[seqIndex];
-		const currentIndex = patterns.findIndex((p) => p.id === currentId);
-		const nextIndex = (currentIndex + 1) % patterns.length;
-		const nextId = patterns[nextIndex].id;
+		const currentIndex = PATTERN_IDS.indexOf(currentId);
+		const nextIndex = (currentIndex + direction + PATTERN_IDS.length) % PATTERN_IDS.length;
+		const nextId = PATTERN_IDS[nextIndex];
 		patternIdSequence[seqIndex] = nextId;
-		// TODO:
-		// sequence = sequence.map((id, idx) => (idx === seqIndex ? nextId : id));
-	}
-
-	function addPattern(id: string) {
-		console.assert(!patterns.find((p) => p.id === id), 'Pattern ID already exists');
-		const newPattern = createPattern(id, beatsPerMeasure, stepsPerBeat);
-		patterns.push(newPattern); // TODO:
 	}
 
 	function totalSteps(): number {
@@ -341,7 +334,7 @@
 			await ctx.resume();
 		}
 
-		currentStep = 0;
+		currentStep = selectedSequenceIndex * stepsPerPattern();
 		playStep(currentStep);
 		const durationMs = stepDurationSeconds() * 1000;
 		timeoutId = window.setTimeout(startPlayingStepsUsingTimeout, durationMs);
@@ -574,61 +567,60 @@
 
 		<section class="flex flex-wrap items-center gap-4">
 			<div class="flex items-center gap-2 text-xs text-slate-400">
-				<label for="pattern" class="text-slate-300">Pattern</label>
-				<select
-					id="pattern"
-					bind:value={selectedPatternId}
-					class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-sm
-						focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
-				>
-					{#each patterns as p (p.id)}
-						<option value={p.id}>Pattern {p.id}</option>
-					{/each}
-				</select>
-				{#if patterns.length < MAX_PATTERNS}
-					<button
-						type="button"
-						on:click={() => {
-							const nextId = PATTERN_IDS.find((id) => !patterns.find((p) => p.id === id));
-							if (nextId) {
-								addPattern(nextId);
-								selectedPatternId = nextId;
-							}
-						}}
-						class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs hover:bg-slate-800"
-						title="Add new pattern"
-					>
-						+
-					</button>
-				{/if}
-			</div>
-
-			<div class="flex items-center gap-2 text-xs text-slate-400">
 				<span class="text-slate-300">Sequence</span>
 				<div class="flex items-center gap-1.5">
 					{#each patternIdSequence as patternId, seqIndex (seqIndex)}
 						{@const isPlayingThis =
 							isPlaying && Math.floor(currentStep / stepsPerPattern()) === seqIndex}
-						<button
-							type="button"
-							on:click={() => cyclePatternAtPosition(seqIndex)}
-							class={`min-w-[2.5rem] rounded-md px-3 py-1.5 text-sm font-semibold text-white transition
+						{@const isSelected = selectedSequenceIndex === seqIndex}
+						<div
+							role="button"
+							tabindex="0"
+							on:click={() => {
+								selectedSequenceIndex = seqIndex;
+							}}
+							on:keydown={(e) => {
+								if (e.key === 'Enter' || e.key === ' ') {
+									e.preventDefault();
+									selectedSequenceIndex = seqIndex;
+								}
+							}}
+							class={`flex min-w-[2.5rem] cursor-pointer flex-col items-center rounded-md px-2 py-1 transition
 								${getPatternColor(patternId)}
-								hover:scale-105 hover:opacity-80
-								${isPlayingThis ? 'shadow-lg ring-2 shadow-emerald-500/50 ring-emerald-400 ring-offset-2 ring-offset-slate-900' : ''}
+								${isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900' : ''}
+								${isPlayingThis ? 'shadow-lg shadow-emerald-500/50' : ''}
 							`}
-							title="Click to change pattern"
 						>
-							{patternId}
-						</button>
+							<button
+								type="button"
+								on:click={(e) => {
+									e.stopPropagation();
+									cyclePatternAtPosition(seqIndex, 1);
+								}}
+								class="text-white/80 hover:scale-110 hover:text-white"
+								title="Next pattern"
+							>
+								▲
+							</button>
+							<span class="text-sm font-semibold text-white">{patternId}</span>
+							<button
+								type="button"
+								on:click={(e) => {
+									e.stopPropagation();
+									cyclePatternAtPosition(seqIndex, -1);
+								}}
+								class="text-white/80 hover:scale-110 hover:text-white"
+								title="Previous pattern"
+							>
+								▼
+							</button>
+						</div>
 					{/each}
 					{#if patternIdSequence.length < MAX_MEASURES}
 						<button
 							type="button"
 							on:click={() => {
-								if (patterns.length > 0) {
-									patternIdSequence.push(patterns[0].id);
-								}
+								patternIdSequence.push(PATTERN_IDS[0]);
 							}}
 							class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs hover:bg-slate-800"
 							title="Add to sequence"
@@ -641,6 +633,12 @@
 							type="button"
 							on:click={() => {
 								patternIdSequence = patternIdSequence.slice(0, -1);
+								if (selectedSequenceIndex >= patternIdSequence.length) {
+									selectedSequenceIndex = patternIdSequence.length - 1;
+									if (selectedSequenceIndex < 0) {
+										selectedSequenceIndex = 0;
+									}
+								}
 							}}
 							class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs hover:bg-slate-800"
 							title="Remove last"
