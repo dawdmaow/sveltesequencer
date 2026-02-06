@@ -67,6 +67,15 @@
 	let allowNonScaleNotes = $state(true);
 	let isPainting = $state(false);
 	let paintTargetState = $state(true);
+	let selectedNotes = $state<Set<string>>(new Set()); // js is dumb, sets with non-primitive types assume ref semantics (so we use string as a substitute)
+	let selectionRectAnchor = $state<{ step: number; pitch: number } | null>(null);
+	let selectionRectExtent = $state<{ step: number; pitch: number } | null>(null);
+	let isSelectingRect = $state(false);
+	let isDragging = $state(false);
+	let dragStartCell = $state<{ step: number; pitch: number } | null>(null);
+	let dragStartNotes = $state<Array<{ step: number; pitch: number }>>([]);
+	let dragLastPositions = $state<Array<{ step: number; pitch: number }>>([]);
+	let dragOverwrittenNotes = $state<Array<{ step: number; pitch: number }>>([]);
 
 	let selectedPatternId = $derived(patternIdSequence[selectedSequenceIndex] ?? PATTERN_IDS[0]);
 
@@ -80,6 +89,7 @@
 		patterns = PATTERN_IDS.map((id) => createPattern(id, 4, 4));
 		patternIdSequence = ['A'];
 		selectedSequenceIndex = 0;
+		selectedNotes = new Set();
 		key = 'C';
 		scale = 'Natural Minor';
 		allowNonScaleNotes = true;
@@ -282,6 +292,142 @@
 		pattern.steps[step].pitches[pitchIndex] = state;
 	}
 
+	function isNoteSelected(step: number, pitch: number): boolean {
+		return selectedNotes.has(`${step}-${pitch}`);
+	}
+
+	function getSelectionRect(): {
+		minStep: number;
+		maxStep: number;
+		minPitch: number;
+		maxPitch: number;
+	} | null {
+		if (!selectionRectAnchor || !selectionRectExtent) return null;
+		return {
+			minStep: Math.min(selectionRectAnchor.step, selectionRectExtent.step),
+			maxStep: Math.max(selectionRectAnchor.step, selectionRectExtent.step),
+			minPitch: Math.min(selectionRectAnchor.pitch, selectionRectExtent.pitch),
+			maxPitch: Math.max(selectionRectAnchor.pitch, selectionRectExtent.pitch)
+		};
+	}
+
+	function isInSelectionRect(step: number, pitch: number): boolean {
+		const rect = getSelectionRect();
+		if (!rect) return false;
+		return (
+			step >= rect.minStep &&
+			step <= rect.maxStep &&
+			pitch >= rect.minPitch &&
+			pitch <= rect.maxPitch
+		);
+	}
+
+	function addNotesInRectToSelection(rect: {
+		minStep: number;
+		maxStep: number;
+		minPitch: number;
+		maxPitch: number;
+	}) {
+		const pattern = patterns.find((p) => p.id === displayedPatternId);
+		if (!pattern) return;
+		const next = new Set(selectedNotes);
+		for (let s = rect.minStep; s <= rect.maxStep; s++) {
+			for (let p = rect.minPitch; p <= rect.maxPitch; p++) {
+				if (pattern.steps[s]?.pitches[p]) {
+					next.add(`${s}-${p}`);
+				}
+			}
+		}
+		selectedNotes = next;
+	}
+
+	function getSelectedNotesArray(): Array<{ step: number; pitch: number }> {
+		return Array.from(selectedNotes).map((k) => {
+			const [s, p] = k.split('-');
+			return { step: +s, pitch: +p };
+		});
+	}
+
+	function clearNotesAt(positions: Array<{ step: number; pitch: number }>) {
+		const pattern = patterns.find((p) => p.id === displayedPatternId);
+		if (!pattern) return;
+		for (const { step, pitch } of positions) {
+			if (pattern.steps[step]) {
+				pattern.steps[step].pitches[pitch] = false;
+			}
+		}
+	}
+
+	function setNotesAt(positions: Array<{ step: number; pitch: number }>) {
+		const pattern = patterns.find((p) => p.id === displayedPatternId);
+		if (!pattern) return;
+		for (const { step, pitch } of positions) {
+			if (step >= 0 && step < pattern.steps.length && pitch >= 0 && pitch < NUM_PITCHES) {
+				pattern.steps[step].pitches[pitch] = true;
+			}
+		}
+	}
+
+	function handleCellMousedown(
+		stepIndex: number,
+		pitchIndex: number,
+		e: MouseEvent,
+		opts: { hasNote: boolean; noteSelected: boolean; isDisabled: boolean }
+	) {
+		if (opts.isDisabled) return;
+		e.preventDefault();
+		if (e.metaKey || e.ctrlKey) {
+			selectionRectAnchor = { step: stepIndex, pitch: pitchIndex };
+			selectionRectExtent = { step: stepIndex, pitch: pitchIndex };
+			isSelectingRect = true;
+		} else if (e.shiftKey && opts.hasNote) {
+			const key = `${stepIndex}-${pitchIndex}`;
+			const next = new Set(selectedNotes);
+			if (next.has(key)) next.delete(key);
+			else next.add(key);
+			selectedNotes = next;
+		} else if (opts.noteSelected && selectedNotes.size > 0) {
+			const notes = getSelectedNotesArray();
+			selectedNotes = new Set();
+			dragStartNotes = notes;
+			dragStartCell = { step: stepIndex, pitch: pitchIndex };
+			dragLastPositions = [];
+			dragOverwrittenNotes = [];
+			isDragging = true;
+		} else {
+			selectedNotes = new Set();
+			paintTargetState = !opts.hasNote;
+			setCell(stepIndex, pitchIndex, paintTargetState);
+			isPainting = true;
+		}
+	}
+
+	function handleCellMouseenter(stepIndex: number, pitchIndex: number, isDisabled: boolean) {
+		if (isSelectingRect) {
+			selectionRectExtent = { step: stepIndex, pitch: pitchIndex };
+		} else if (isDragging && dragStartCell) {
+			const deltaStep = stepIndex - dragStartCell.step;
+			const deltaPitch = pitchIndex - dragStartCell.pitch;
+			const pattern = patterns.find((p) => p.id === displayedPatternId);
+			if (!pattern) return;
+			const stepsLen = pattern.steps.length;
+			clearNotesAt(dragLastPositions.length > 0 ? dragLastPositions : dragStartNotes);
+			setNotesAt(dragOverwrittenNotes);
+			const newPositions = dragStartNotes
+				.map((n) => ({
+					step: n.step + deltaStep,
+					pitch: n.pitch + deltaPitch
+				}))
+				.filter((n) => n.step >= 0 && n.step < stepsLen && n.pitch >= 0 && n.pitch < NUM_PITCHES);
+			const overwritten = newPositions.filter((p) => pattern.steps[p.step]?.pitches[p.pitch]);
+			setNotesAt(newPositions);
+			dragLastPositions = newPositions;
+			dragOverwrittenNotes = overwritten;
+		} else if (isPainting && !isDisabled) {
+			setCell(stepIndex, pitchIndex, paintTargetState);
+		}
+	}
+
 	function stepDurationSeconds() {
 		const numericBpm = clampBpm(Number(bpm));
 		const steps = clampStepsPerBeat(stepsPerBeat);
@@ -363,6 +509,14 @@
 	}
 
 	$effect(() => {
+		if (typeof document === 'undefined') return;
+		document.body.style.cursor = isDragging ? 'grabbing' : '';
+		return () => {
+			document.body.style.cursor = '';
+		};
+	});
+
+	$effect(() => {
 		const stepsPerPat = stepsPerPattern();
 		const needsUpdate = patterns.some((pattern) => pattern.steps.length !== stepsPerPat);
 		if (!needsUpdate) return;
@@ -399,7 +553,18 @@
 		else start();
 	}}
 	on:mouseup={() => {
+		if (isSelectingRect) {
+			const rect = getSelectionRect();
+			if (rect) {
+				addNotesInRectToSelection(rect);
+			}
+			selectionRectAnchor = null;
+			selectionRectExtent = null;
+			isSelectingRect = false;
+		}
 		isPainting = false;
+		isDragging = false;
+		dragStartCell = null;
 	}}
 />
 
@@ -564,25 +729,25 @@
 									patternIdSequence[currentPatternIndex] === displayedPatternId &&
 									currentStepInPattern === stepIndex}
 								{@const isDisabled = !allowNonScaleNotes && !isInScale(pitchIndex)}
+								{@const hasNote = column.pitches[pitchIndex]}
+								{@const noteSelected = isNoteSelected(stepIndex, pitchIndex)}
+								{@const inSelectionRect = isInSelectionRect(stepIndex, pitchIndex)}
 								<button
 									type="button"
 									disabled={isDisabled}
-									on:mousedown={(e) => {
-										if (isDisabled) return;
-										e.preventDefault();
-										paintTargetState = !column.pitches[pitchIndex];
-										setCell(stepIndex, pitchIndex, paintTargetState);
-										isPainting = true;
-									}}
-									on:mouseenter={() => {
-										if (isPainting && !isDisabled) {
-											setCell(stepIndex, pitchIndex, paintTargetState);
-										}
-									}}
+									on:mousedown={(e) =>
+										handleCellMousedown(stepIndex, pitchIndex, e, {
+											hasNote,
+											noteSelected,
+											isDisabled
+										})}
+									on:mouseenter={() => handleCellMouseenter(stepIndex, pitchIndex, isDisabled)}
 									class={`h-8 w-8 flex-shrink-0 rounded-sm border text-xs transition
 										${getCellClasses(pitchIndex, column.pitches[pitchIndex])}
 										${isPlayingThisStep ? 'ring-2 ring-emerald-400/80 ring-offset-2 ring-offset-slate-900' : ''}
-										${isDisabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}
+										${isSelectingRect && inSelectionRect ? 'brightness-150' : ''}
+										${noteSelected ? 'brightness-125' : ''}
+										${isDisabled ? 'cursor-not-allowed opacity-40' : noteSelected ? 'cursor-grab' : 'cursor-pointer'}
 									`}
 									aria-label="Toggle note"
 								></button>
