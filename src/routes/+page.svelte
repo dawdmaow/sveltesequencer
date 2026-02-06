@@ -27,7 +27,7 @@
 	let currentStep = 0;
 	let bpm = 120;
 
-	let intervalId: number | null = null; // browser internal for for the step scheduler
+	let timeoutId: number | null = null; // browser internal for the step scheduler
 	let _audioCtxCache: AudioContext | null = null; // browser internal
 
 	const noteNames = ['C4', 'C#4', 'D4', 'D#4', 'E4', 'F4', 'F#4', 'G4', 'G#4', 'A4', 'A#4', 'B4'];
@@ -83,6 +83,14 @@
 		}
 	}
 
+	function scheduleNextStep() {
+		if (!isPlaying) return;
+		currentStep = (currentStep + 1) % NUM_STEPS;
+		scheduleStep(currentStep);
+		const durationMs = stepDurationSeconds() * 1000;
+		timeoutId = window.setTimeout(scheduleNextStep, durationMs);
+	}
+
 	async function start() {
 		if (isPlaying) return;
 		isPlaying = true;
@@ -95,20 +103,16 @@
 
 		currentStep = 0;
 		scheduleStep(currentStep);
-
 		const durationMs = stepDurationSeconds() * 1000;
-		intervalId = window.setInterval(() => {
-			currentStep = (currentStep + 1) % NUM_STEPS;
-			scheduleStep(currentStep);
-		}, durationMs);
+		timeoutId = window.setTimeout(scheduleNextStep, durationMs);
 	}
 
 	function stop() {
 		if (!isPlaying) return;
 		isPlaying = false;
-		if (intervalId !== null) {
-			clearInterval(intervalId);
-			intervalId = null;
+		if (timeoutId !== null) {
+			clearTimeout(timeoutId);
+			timeoutId = null;
 		}
 	}
 
@@ -117,8 +121,8 @@
 	}
 
 	onDestroy(() => {
-		if (intervalId !== null) {
-			clearInterval(intervalId);
+		if (timeoutId !== null) {
+			clearTimeout(timeoutId);
 		}
 	});
 </script>
