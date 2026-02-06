@@ -65,6 +65,10 @@
 	let key = $state('C');
 	let scale = $state<Scale>('Natural Minor');
 	let allowNonScaleNotes = $state(true);
+	let synthOscType = $state<OscillatorType>('square');
+	let synthVolume = $state(0.3);
+	let synthAttackMs = $state(10);
+	let synthReleaseMs = $state(100);
 	let isPainting = $state(false);
 	let paintTargetState = $state(true);
 	let selectedNotes = $state<Set<string>>(new Set()); // js is dumb, sets with non-primitive types assume ref semantics (so we use string as a substitute)
@@ -93,6 +97,10 @@
 		key = 'C';
 		scale = 'Natural Minor';
 		allowNonScaleNotes = true;
+		synthOscType = 'square';
+		synthVolume = 0.3;
+		synthAttackMs = 10;
+		synthReleaseMs = 100;
 		bpm = 120;
 		beatsPerMeasure = 4;
 		stepsPerBeat = 4;
@@ -271,12 +279,16 @@
 		const osc = ctx.createOscillator();
 		const gain = ctx.createGain();
 
-		osc.type = 'square';
+		osc.type = synthOscType;
 		osc.frequency.value = midiToFreq(midiNote);
 
-		gain.gain.setValueAtTime(0, time); // starting at 0 prevents clicks
-		gain.gain.linearRampToValueAtTime(0.3, time + 0.01);
-		gain.gain.linearRampToValueAtTime(0.0, time + duration); // fade out
+		gain.gain.setValueAtTime(0, time);
+		const attackSec = synthAttackMs / 1000;
+		const releaseSec = synthReleaseMs / 1000;
+		gain.gain.linearRampToValueAtTime(synthVolume, time + attackSec);
+		const releaseStart = Math.max(time + attackSec, time + duration - releaseSec);
+		gain.gain.linearRampToValueAtTime(synthVolume, releaseStart);
+		gain.gain.linearRampToValueAtTime(0, time + duration);
 
 		osc.connect(gain);
 		gain.connect(ctx.destination);
@@ -650,6 +662,67 @@
 					class="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-right text-sm
 						focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
 				/>
+			</div>
+
+			<div class="flex items-center gap-2 text-xs text-slate-400">
+				<label for="osc" class="text-slate-300">Osc</label>
+				<select
+					id="osc"
+					bind:value={synthOscType}
+					class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-sm
+						focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
+				>
+					<option value="sine">sine</option>
+					<option value="square">square</option>
+					<option value="sawtooth">sawtooth</option>
+					<option value="triangle">triangle</option>
+				</select>
+			</div>
+
+			<div class="flex items-center gap-2 text-sm">
+				<label for="vol" class="text-slate-300">Vol</label>
+				<input
+					id="vol"
+					type="range"
+					min="0"
+					max="1"
+					step="0.01"
+					bind:value={synthVolume}
+					class="w-20 accent-emerald-500"
+				/>
+				<span class="w-8 text-right text-slate-400">{Math.round(synthVolume * 100)}%</span>
+			</div>
+
+			<div class="flex items-center gap-2 text-sm">
+				<label for="attack" class="text-slate-300">Attack (ms)</label>
+				<input
+					id="attack"
+					type="range"
+					min="1"
+					max="100"
+					step="1"
+					bind:value={synthAttackMs}
+					class="w-20 accent-emerald-500"
+				/>
+				<span class="min-w-12 shrink-0 text-right whitespace-nowrap text-slate-400"
+					>{synthAttackMs} ms</span
+				>
+			</div>
+
+			<div class="flex items-center gap-2 text-sm">
+				<label for="release" class="text-slate-300">Release (ms)</label>
+				<input
+					id="release"
+					type="range"
+					min="1"
+					max="500"
+					step="1"
+					bind:value={synthReleaseMs}
+					class="w-20 accent-emerald-500"
+				/>
+				<span class="min-w-12 shrink-0 text-right whitespace-nowrap text-slate-400"
+					>{synthReleaseMs} ms</span
+				>
 			</div>
 
 			<div class="flex items-center gap-2 text-xs text-slate-400">
