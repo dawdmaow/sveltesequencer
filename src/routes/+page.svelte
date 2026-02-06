@@ -388,6 +388,16 @@
 	});
 </script>
 
+<svelte:window
+	on:keydown={(e) => {
+		if (e.key !== ' ') return;
+		if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+		e.preventDefault();
+		if (isPlaying) stop();
+		else start();
+	}}
+/>
+
 <main class="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-10 text-slate-100">
 	<div class="w-full max-w-5xl space-y-6">
 		<header class="space-y-1">
