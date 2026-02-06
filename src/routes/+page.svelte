@@ -29,6 +29,21 @@
 		};
 	}
 
+	type Scale =
+		| 'Major'
+		| 'Natural Minor'
+		| 'Harmonic Minor'
+		| 'Melodic Minor'
+		| 'Dorian'
+		| 'Phrygian'
+		| 'Lydian'
+		| 'Mixolydian'
+		| 'Locrian'
+		| 'Pentatonic Major'
+		| 'Pentatonic Minor'
+		| 'Blues'
+		| 'Chromatic';
+
 	let notes: Notes = notesEmpty();
 	let isPlaying = false;
 	let currentStep = 0;
@@ -36,12 +51,29 @@
 	let beatsPerMeasure = 4;
 	let stepsPerBeat = 4;
 	let key = 'C';
+	let scale: Scale = 'Natural Minor';
 
 	let timeoutId: number | null = null; // browser internal for the step scheduler
 	let _audioCtxCache: AudioContext | null = null; // browser internal
 
 	const keys = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 	const chromatic = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+	const scales: Record<Scale, number[]> = {
+		Major: [0, 2, 4, 5, 7, 9, 11],
+		'Natural Minor': [0, 2, 3, 5, 7, 8, 10],
+		'Harmonic Minor': [0, 2, 3, 5, 7, 8, 11],
+		'Melodic Minor': [0, 2, 3, 5, 7, 9, 11],
+		Dorian: [0, 2, 3, 5, 7, 9, 10],
+		Phrygian: [0, 1, 3, 5, 7, 8, 10],
+		Lydian: [0, 2, 4, 6, 7, 9, 11],
+		Mixolydian: [0, 2, 4, 5, 7, 9, 10],
+		Locrian: [0, 1, 3, 5, 6, 8, 10],
+		'Pentatonic Major': [0, 2, 4, 7, 9],
+		'Pentatonic Minor': [0, 3, 5, 7, 10],
+		Blues: [0, 3, 5, 6, 7, 10],
+		Chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+	};
 
 	function getChromaticIndex(noteName: string): number {
 		return chromatic.indexOf(noteName);
@@ -58,6 +90,60 @@
 		const rootIndex = getChromaticIndex(key);
 		const fifthIndex = (rootIndex + 7) % 12;
 		return noteInOctave === fifthIndex;
+	}
+
+	function isInScale(pitchIndex: number): boolean {
+		const noteInOctave = (NUM_PITCHES - 1 - pitchIndex) % 12;
+		const rootIndex = getChromaticIndex(key);
+		const scaleIntervals = scales[scale];
+		const relativeInterval = (noteInOctave - rootIndex + 12) % 12;
+		return scaleIntervals.includes(relativeInterval);
+	}
+
+	function isFifthInScale(pitchIndex: number): boolean {
+		return isFifthNote(pitchIndex) && isInScale(pitchIndex);
+	}
+
+	function getCellClasses(pitchIndex: number, isActive: boolean): string {
+		if (isRootNote(pitchIndex)) {
+			return isActive
+				? 'border-blue-400 bg-blue-500/70 shadow-lg shadow-blue-500/50'
+				: 'border-blue-800/50 bg-blue-900/30 hover:border-blue-700 hover:bg-blue-900/50';
+		}
+		if (isFifthInScale(pitchIndex)) {
+			return isActive
+				? 'border-purple-400 bg-purple-500/70 shadow-lg shadow-purple-500/50'
+				: 'border-purple-800/50 bg-purple-900/30 hover:border-purple-700 hover:bg-purple-900/50';
+		}
+		if (isFifthNote(pitchIndex)) {
+			return isActive
+				? 'border-purple-700/50 bg-purple-800/40 shadow-lg shadow-purple-900/30'
+				: 'border-purple-900/30 bg-purple-950/20 hover:border-purple-800/40 hover:bg-purple-950/30';
+		}
+		if (isInScale(pitchIndex)) {
+			return isActive
+				? 'border-emerald-400 bg-emerald-500/70 shadow-lg shadow-emerald-500/50'
+				: 'border-slate-700/50 bg-slate-800/40 hover:border-slate-600 hover:bg-slate-800/60';
+		}
+		return isActive
+			? 'border-amber-400 bg-amber-500/50 shadow-lg shadow-amber-500/30'
+			: 'border-slate-800/30 bg-slate-900/20 hover:border-slate-700/50 hover:bg-slate-800/30';
+	}
+
+	function getNoteLabelClasses(pitchIndex: number): string {
+		if (isRootNote(pitchIndex)) {
+			return 'font-semibold text-blue-400';
+		}
+		if (isFifthInScale(pitchIndex)) {
+			return 'font-semibold text-purple-400';
+		}
+		if (isFifthNote(pitchIndex)) {
+			return 'text-purple-600';
+		}
+		if (isInScale(pitchIndex)) {
+			return 'text-slate-300';
+		}
+		return 'text-slate-500';
 	}
 
 	function getNoteName(pitchIndex: number): string {
@@ -290,6 +376,20 @@
 			</div>
 
 			<div class="flex items-center gap-2 text-xs text-slate-400">
+				<label for="scale" class="text-slate-300">Scale</label>
+				<select
+					id="scale"
+					bind:value={scale}
+					class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-sm
+						focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
+				>
+					{#each Object.keys(scales) as s (s)}
+						<option value={s}>{s}</option>
+					{/each}
+				</select>
+			</div>
+
+			<div class="flex items-center gap-2 text-xs text-slate-400">
 				<button
 					type="button"
 					on:click={clearPattern}
@@ -307,12 +407,9 @@
 				{#each [...Array(NUM_PITCHES).keys()] as pitchIndex (pitchIndex)}
 					<div class="flex gap-2">
 						<div
-							class="flex w-16 flex-shrink-0 items-center justify-end pr-2 text-xs
-								{isRootNote(pitchIndex)
-								? 'font-semibold text-blue-400'
-								: isFifthNote(pitchIndex)
-									? 'font-semibold text-purple-400'
-									: 'text-slate-400'}"
+							class="flex w-16 flex-shrink-0 items-center justify-end pr-2 text-xs {getNoteLabelClasses(
+								pitchIndex
+							)}"
 						>
 							<span>{getNoteName(pitchIndex)}</span>
 						</div>
@@ -322,19 +419,7 @@
 									type="button"
 									on:click={() => toggleCell(stepIndex, pitchIndex)}
 									class={`h-8 w-8 flex-shrink-0 rounded-sm border text-xs transition
-										${
-											column.pitches[pitchIndex]
-												? isRootNote(pitchIndex)
-													? 'border-blue-400 bg-blue-500/70 shadow-lg shadow-blue-500/50'
-													: isFifthNote(pitchIndex)
-														? 'border-purple-400 bg-purple-500/70 shadow-lg shadow-purple-500/50'
-														: 'border-emerald-400 bg-emerald-500/70 shadow-lg shadow-emerald-500/50'
-												: isRootNote(pitchIndex)
-													? 'border-blue-800/50 bg-blue-900/30 hover:border-blue-700 hover:bg-blue-900/50'
-													: isFifthNote(pitchIndex)
-														? 'border-purple-800/50 bg-purple-900/30 hover:border-purple-700 hover:bg-purple-900/50'
-														: 'border-slate-800 bg-slate-900/70 hover:border-slate-600 hover:bg-slate-800'
-										}
+										${getCellClasses(pitchIndex, column.pitches[pitchIndex])}
 										${
 											isPlaying && currentStep === stepIndex
 												? 'ring-2 ring-emerald-400/80 ring-offset-2 ring-offset-slate-900'
