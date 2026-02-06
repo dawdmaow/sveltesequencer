@@ -1,12 +1,15 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 
-	const NUM_STEPS = 16;
-	const STEPS_PER_BEAT = 4;
+	const MAX_STEPS = 32;
 	const NUM_PITCHES = 12;
 	const BASE_MIDI_NOTE = 60; // C4
 	const MIN_BPM = 40;
 	const MAX_BPM = 300;
+	const MIN_BEATS_PER_MEASURE = 1;
+	const MAX_BEATS_PER_MEASURE = 16;
+	const MIN_STEPS_PER_BEAT = 1;
+	const MAX_STEPS_PER_BEAT = 16;
 
 	interface Step {
 		pitches: boolean[];
@@ -18,7 +21,7 @@
 
 	function notesEmpty(): Notes {
 		return {
-			steps: Array.from({ length: NUM_STEPS }, () => ({
+			steps: Array.from({ length: MAX_STEPS }, () => ({
 				pitches: Array(NUM_PITCHES).fill(false)
 			}))
 		};
@@ -28,6 +31,8 @@
 	let isPlaying = false;
 	let currentStep = 0;
 	let bpm = 120;
+	let beatsPerMeasure = 4;
+	let stepsPerBeat = 4;
 
 	let timeoutId: number | null = null; // browser internal for the step scheduler
 	let _audioCtxCache: AudioContext | null = null; // browser internal
@@ -39,6 +44,26 @@
 		if (value < MIN_BPM) return MIN_BPM;
 		if (value > MAX_BPM) return MAX_BPM;
 		return value;
+	}
+
+	function clampBeatsPerMeasure(value: number): number {
+		if (!Number.isFinite(value)) return MIN_BEATS_PER_MEASURE;
+		if (value < MIN_BEATS_PER_MEASURE) return MIN_BEATS_PER_MEASURE;
+		if (value > MAX_BEATS_PER_MEASURE) return MAX_BEATS_PER_MEASURE;
+		return Math.trunc(value);
+	}
+
+	function clampStepsPerBeat(value: number): number {
+		if (!Number.isFinite(value)) return MIN_STEPS_PER_BEAT;
+		if (value < MIN_STEPS_PER_BEAT) return MIN_STEPS_PER_BEAT;
+		if (value > MAX_STEPS_PER_BEAT) return MAX_STEPS_PER_BEAT;
+		return Math.trunc(value);
+	}
+
+	function totalSteps(): number {
+		const beats = clampBeatsPerMeasure(beatsPerMeasure);
+		const steps = clampStepsPerBeat(stepsPerBeat);
+		return Math.max(1, Math.min(MAX_STEPS, beats * steps));
 	}
 
 	function midiToFreq(midi: number) {
@@ -78,7 +103,8 @@
 
 	function stepDurationSeconds() {
 		const numericBpm = clampBpm(Number(bpm));
-		return 60 / (numericBpm * STEPS_PER_BEAT);
+		const steps = clampStepsPerBeat(stepsPerBeat);
+		return 60 / (numericBpm * steps);
 	}
 
 	function scheduleStep(step: number) {
@@ -95,7 +121,8 @@
 
 	function scheduleNextStep() {
 		if (!isPlaying) return;
-		currentStep = (currentStep + 1) % NUM_STEPS;
+		const stepsInLoop = totalSteps();
+		currentStep = (currentStep + 1) % stepsInLoop;
 		scheduleStep(currentStep);
 		const durationMs = stepDurationSeconds() * 1000;
 		timeoutId = window.setTimeout(scheduleNextStep, durationMs);
@@ -179,6 +206,48 @@
 				/>
 			</div>
 
+			<div class="flex items-center gap-2 text-sm">
+				<label for="beats" class="text-slate-300">Beats / bar</label>
+				<input
+					id="beats"
+					type="number"
+					min={MIN_BEATS_PER_MEASURE}
+					max={MAX_BEATS_PER_MEASURE}
+					bind:value={beatsPerMeasure}
+					on:blur={() => {
+						beatsPerMeasure = clampBeatsPerMeasure(beatsPerMeasure);
+					}}
+					on:keydown={(event) => {
+						if (event.key === 'Enter') {
+							beatsPerMeasure = clampBeatsPerMeasure(beatsPerMeasure);
+						}
+					}}
+					class="w-20 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-right text-sm
+						focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
+				/>
+			</div>
+
+			<div class="flex items-center gap-2 text-sm">
+				<label for="steps" class="text-slate-300">Steps / beat</label>
+				<input
+					id="steps"
+					type="number"
+					min={MIN_STEPS_PER_BEAT}
+					max={MAX_STEPS_PER_BEAT}
+					bind:value={stepsPerBeat}
+					on:blur={() => {
+						stepsPerBeat = clampStepsPerBeat(stepsPerBeat);
+					}}
+					on:keydown={(event) => {
+						if (event.key === 'Enter') {
+							stepsPerBeat = clampStepsPerBeat(stepsPerBeat);
+						}
+					}}
+					class="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-right text-sm
+						focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
+				/>
+			</div>
+
 			<div class="flex items-center gap-2 text-xs text-slate-400">
 				<button
 					type="button"
@@ -203,7 +272,7 @@
 
 			<div class="relative flex-1">
 				<div class="grid auto-cols-[minmax(1.5rem,2.5rem)] grid-flow-col gap-0.5">
-					{#each notes.steps as column, stepIndex (stepIndex)}
+					{#each notes.steps.slice(0, totalSteps()) as column, stepIndex (stepIndex)}
 						<div class="flex flex-col gap-0.5">
 							{#each column.pitches as active, pitchIndex (pitchIndex)}
 								<button
