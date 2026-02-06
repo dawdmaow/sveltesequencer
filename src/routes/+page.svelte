@@ -68,6 +68,12 @@
 
 	let selectedPatternId = $derived(patternIdSequence[selectedSequenceIndex] ?? PATTERN_IDS[0]);
 
+	let displayedPatternId = $derived(
+		isPlaying
+			? (patternIdSequence[Math.floor(currentStep / stepsPerPattern())] ?? PATTERN_IDS[0])
+			: selectedPatternId
+	);
+
 	function reset() {
 		patterns = PATTERN_IDS.map((id) => createPattern(id, 4, 4));
 		patternIdSequence = ['A'];
@@ -272,7 +278,7 @@
 			return;
 		}
 
-		const pattern = patterns.find((p) => p.id === selectedPatternId);
+		const pattern = patterns.find((p) => p.id === displayedPatternId);
 		if (!pattern || step >= pattern.steps.length) {
 			return;
 		}
@@ -352,11 +358,11 @@
 	}
 
 	function clearPattern() {
-		const patternIndex = patterns.findIndex((p) => p.id === selectedPatternId);
+		const patternIndex = patterns.findIndex((p) => p.id === displayedPatternId);
 		const pattern = patterns[patternIndex];
 		if (!pattern) return;
 
-		const clearedPattern = createPattern(selectedPatternId, beatsPerMeasure, stepsPerBeat);
+		const clearedPattern = createPattern(displayedPatternId, beatsPerMeasure, stepsPerBeat);
 		patterns[patternIndex] = clearedPattern;
 	}
 
@@ -547,14 +553,14 @@
 							<span>{getNoteName(pitchIndex)}</span>
 						</div>
 						<div class="flex gap-0.5">
-							{#each patterns.find((p) => p.id === selectedPatternId)?.steps || [] as column, stepIndex (stepIndex)}
+							{#each patterns.find((p) => p.id === displayedPatternId)?.steps || [] as column, stepIndex (stepIndex)}
 								{@const stepsPerPat = stepsPerPattern()}
 								{@const currentPatternIndex = Math.floor(currentStep / stepsPerPat)}
 								{@const currentStepInPattern = currentStep % stepsPerPat}
 								{@const isPlayingThisStep =
 									isPlaying &&
 									currentPatternIndex < patternIdSequence.length &&
-									patternIdSequence[currentPatternIndex] === selectedPatternId &&
+									patternIdSequence[currentPatternIndex] === displayedPatternId &&
 									currentStepInPattern === stepIndex}
 								{@const isDisabled = !allowNonScaleNotes && !isInScale(pitchIndex)}
 								<button
