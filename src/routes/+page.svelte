@@ -12,18 +12,27 @@
 	const MAX_BEATS_PER_MEASURE = 16;
 	const MIN_STEPS_PER_BEAT = 1;
 	const MAX_STEPS_PER_BEAT = 16;
+	const MIN_MEASURES = 1;
+	const MAX_MEASURES = 8;
+	const MAX_PATTERNS = 8;
+	const PATTERN_IDS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
 	interface Step {
 		pitches: boolean[];
 	}
 
-	interface Notes {
+	interface Pattern {
+		id: string;
 		steps: Step[];
 	}
 
-	function notesEmpty(): Notes {
+	function createPattern(id: string, beats: number, steps: number): Pattern {
+		const clampedBeats = clampBeatsPerMeasure(beats);
+		const clampedSteps = clampStepsPerBeat(steps);
+		const stepsCount = clampedBeats * clampedSteps;
 		return {
-			steps: Array.from({ length: MAX_STEPS }, () => ({
+			id,
+			steps: Array.from({ length: stepsCount }, () => ({
 				pitches: Array(NUM_PITCHES).fill(false)
 			}))
 		};
@@ -44,15 +53,33 @@
 		| 'Blues'
 		| 'Chromatic';
 
-	let notes: Notes = notesEmpty();
-	let isPlaying = false;
-	let currentStep = 0;
-	let bpm = 120;
-	let beatsPerMeasure = 4;
-	let stepsPerBeat = 4;
-	let key = 'C';
-	let scale: Scale = 'Natural Minor';
-	let allowNonScaleNotes = true;
+	// TODO: unnecessary defaults
+	let patterns = $state<Pattern[]>([]);
+	let patternIdSequence = $state<string[]>([]);
+	let isPlaying = $state(false);
+	let currentStep = $state(0);
+	let bpm = $state(120);
+	let beatsPerMeasure = $state(4);
+	let stepsPerBeat = $state(4);
+	let numMeasures = $state(1);
+	let selectedPatternId = $state('A');
+	let key = $state('C');
+	let scale = $state<Scale>('Natural Minor');
+	let allowNonScaleNotes = $state(true);
+
+	function reset() {
+		patterns = [createPattern('A', 4, 4)];
+		patternIdSequence = [patterns[0].id];
+		selectedPatternId = 'A';
+		key = 'C';
+		scale = 'Natural Minor';
+		allowNonScaleNotes = true;
+		bpm = 120;
+		beatsPerMeasure = 4;
+		stepsPerBeat = 4;
+		numMeasures = 1;
+	}
+	reset();
 
 	let timeoutId: number | null = null; // browser internal for the step scheduler
 	let _audioCtxCache: AudioContext | null = null; // browser internal
@@ -174,10 +201,47 @@
 		return Math.trunc(value);
 	}
 
-	function totalSteps(): number {
+	function stepsPerPattern(): number {
 		const beats = clampBeatsPerMeasure(beatsPerMeasure);
 		const steps = clampStepsPerBeat(stepsPerBeat);
-		return Math.max(1, Math.min(MAX_STEPS, beats * steps));
+		return beats * steps;
+	}
+
+	function getPatternColor(id: string): string {
+		const colors = [
+			'bg-blue-600',
+			'bg-emerald-600',
+			'bg-purple-600',
+			'bg-amber-600',
+			'bg-rose-600',
+			'bg-cyan-600',
+			'bg-pink-600',
+			'bg-indigo-600'
+		];
+		const index = PATTERN_IDS.indexOf(id);
+		return index >= 0 && index < colors.length ? colors[index] : 'bg-slate-600';
+	}
+
+	function cyclePatternAtPosition(seqIndex: number) {
+		if (seqIndex >= patternIdSequence.length || Object.keys(patterns).length === 0) return;
+		const currentId = patternIdSequence[seqIndex];
+		const currentIndex = patterns.findIndex((p) => p.id === currentId);
+		const nextIndex = (currentIndex + 1) % patterns.length;
+		const nextId = patterns[nextIndex].id;
+		patternIdSequence[seqIndex] = nextId;
+		// TODO:
+		// sequence = sequence.map((id, idx) => (idx === seqIndex ? nextId : id));
+	}
+
+	function addPattern(id: string) {
+		console.assert(!patterns.find((p) => p.id === id), 'Pattern ID already exists');
+		const newPattern = createPattern(id, beatsPerMeasure, stepsPerBeat);
+		patterns.push(newPattern); // TODO:
+	}
+
+	function totalSteps(): number {
+		const stepsPerPat = stepsPerPattern();
+		return patternIdSequence.length * stepsPerPat;
 	}
 
 	function midiToFreq(midi: number) {
@@ -214,8 +278,13 @@
 		if (!allowNonScaleNotes && !isInScale(pitchIndex)) {
 			return;
 		}
-		notes.steps[step].pitches[pitchIndex] = !notes.steps[step].pitches[pitchIndex];
-		notes = notes;
+
+		const pattern = patterns.find((p) => p.id === selectedPatternId);
+		if (!pattern || step >= pattern.steps.length) {
+			return;
+		}
+
+		pattern.steps[step].pitches[pitchIndex] = !pattern.steps[step].pitches[pitchIndex];
 	}
 
 	function stepDurationSeconds() {
@@ -224,10 +293,25 @@
 		return 60 / (numericBpm * steps);
 	}
 
-	function scheduleStep(step: number) {
+	function playStep(step: number) {
 		const ctx = ensureAudioContext();
 		const time = ctx.currentTime;
-		const pitches = notes.steps[step].pitches;
+		const stepsPerPat = stepsPerPattern();
+		const sequenceIndex = Math.floor(step / stepsPerPat);
+		const stepInPattern = step % stepsPerPat;
+
+		if (sequenceIndex >= patternIdSequence.length) {
+			return;
+		}
+
+		const patternId = patternIdSequence[sequenceIndex];
+
+		const pattern = patterns.find((p) => p.id === patternId);
+		if (!pattern || stepInPattern >= pattern.steps.length) {
+			return;
+		}
+
+		const pitches = pattern.steps[stepInPattern].pitches;
 		for (const [pitchIndex, active] of pitches.entries()) {
 			if (active) {
 				const midi = BASE_MIDI_NOTE + (NUM_PITCHES - 1 - pitchIndex);
@@ -236,17 +320,19 @@
 		}
 	}
 
-	function scheduleNextStep() {
+	function startPlayingStepsUsingTimeout() {
 		if (!isPlaying) return;
 		const stepsInLoop = totalSteps();
 		currentStep = (currentStep + 1) % stepsInLoop;
-		scheduleStep(currentStep);
+		playStep(currentStep);
 		const durationMs = stepDurationSeconds() * 1000;
-		timeoutId = window.setTimeout(scheduleNextStep, durationMs);
+		timeoutId = window.setTimeout(startPlayingStepsUsingTimeout, durationMs);
 	}
 
 	async function start() {
-		if (isPlaying) return;
+		if (isPlaying) {
+			return;
+		}
 		isPlaying = true;
 
 		const ctx = ensureAudioContext();
@@ -256,13 +342,15 @@
 		}
 
 		currentStep = 0;
-		scheduleStep(currentStep);
+		playStep(currentStep);
 		const durationMs = stepDurationSeconds() * 1000;
-		timeoutId = window.setTimeout(scheduleNextStep, durationMs);
+		timeoutId = window.setTimeout(startPlayingStepsUsingTimeout, durationMs);
 	}
 
 	function stop() {
-		if (!isPlaying) return;
+		if (!isPlaying) {
+			return;
+		}
 		isPlaying = false;
 		if (timeoutId !== null) {
 			clearTimeout(timeoutId);
@@ -271,8 +359,34 @@
 	}
 
 	function clearPattern() {
-		notes = notesEmpty();
+		const patternIndex = patterns.findIndex((p) => p.id === selectedPatternId);
+		const pattern = patterns[patternIndex];
+		if (!pattern) return;
+
+		const clearedPattern = createPattern(selectedPatternId, beatsPerMeasure, stepsPerBeat);
+		patterns[patternIndex] = clearedPattern;
 	}
+
+	$effect(() => {
+		const stepsPerPat = stepsPerPattern();
+		const needsUpdate = patterns.some((pattern) => pattern.steps.length !== stepsPerPat);
+		if (!needsUpdate) return;
+
+		for (const pattern of patterns) {
+			const currentSteps = pattern.steps.length;
+			if (currentSteps === stepsPerPat) continue;
+
+			if (stepsPerPat > currentSteps) {
+				for (let i = currentSteps; i < stepsPerPat; i++) {
+					pattern.steps.push({
+						pitches: Array(NUM_PITCHES).fill(false)
+					});
+				}
+			} else {
+				pattern.steps.length = stepsPerPat;
+			}
+		}
+	});
 
 	onDestroy(() => {
 		if (timeoutId !== null) {
@@ -430,7 +544,15 @@
 							<span>{getNoteName(pitchIndex)}</span>
 						</div>
 						<div class="flex gap-0.5">
-							{#each notes.steps.slice(0, totalSteps()) as column, stepIndex (stepIndex)}
+							{#each patterns.find((p) => p.id === selectedPatternId)?.steps || [] as column, stepIndex (stepIndex)}
+								{@const stepsPerPat = stepsPerPattern()}
+								{@const currentPatternIndex = Math.floor(currentStep / stepsPerPat)}
+								{@const currentStepInPattern = currentStep % stepsPerPat}
+								{@const isPlayingThisStep =
+									isPlaying &&
+									currentPatternIndex < patternIdSequence.length &&
+									patternIdSequence[currentPatternIndex] === selectedPatternId &&
+									currentStepInPattern === stepIndex}
 								{@const isDisabled = !allowNonScaleNotes && !isInScale(pitchIndex)}
 								<button
 									type="button"
@@ -438,11 +560,7 @@
 									disabled={isDisabled}
 									class={`h-8 w-8 flex-shrink-0 rounded-sm border text-xs transition
 										${getCellClasses(pitchIndex, column.pitches[pitchIndex])}
-										${
-											isPlaying && currentStep === stepIndex
-												? 'ring-2 ring-emerald-400/80 ring-offset-2 ring-offset-slate-900'
-												: ''
-										}
+										${isPlayingThisStep ? 'ring-2 ring-emerald-400/80 ring-offset-2 ring-offset-slate-900' : ''}
 										${isDisabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}
 									`}
 									aria-label="Toggle note"
@@ -451,6 +569,86 @@
 						</div>
 					</div>
 				{/each}
+			</div>
+		</section>
+
+		<section class="flex flex-wrap items-center gap-4">
+			<div class="flex items-center gap-2 text-xs text-slate-400">
+				<label for="pattern" class="text-slate-300">Pattern</label>
+				<select
+					id="pattern"
+					bind:value={selectedPatternId}
+					class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-sm
+						focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
+				>
+					{#each patterns as p (p.id)}
+						<option value={p.id}>Pattern {p.id}</option>
+					{/each}
+				</select>
+				{#if patterns.length < MAX_PATTERNS}
+					<button
+						type="button"
+						on:click={() => {
+							const nextId = PATTERN_IDS.find((id) => !patterns.find((p) => p.id === id));
+							if (nextId) {
+								addPattern(nextId);
+								selectedPatternId = nextId;
+							}
+						}}
+						class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs hover:bg-slate-800"
+						title="Add new pattern"
+					>
+						+
+					</button>
+				{/if}
+			</div>
+
+			<div class="flex items-center gap-2 text-xs text-slate-400">
+				<span class="text-slate-300">Sequence</span>
+				<div class="flex items-center gap-1.5">
+					{#each patternIdSequence as patternId, seqIndex (seqIndex)}
+						{@const isPlayingThis =
+							isPlaying && Math.floor(currentStep / stepsPerPattern()) === seqIndex}
+						<button
+							type="button"
+							on:click={() => cyclePatternAtPosition(seqIndex)}
+							class={`min-w-[2.5rem] rounded-md px-3 py-1.5 text-sm font-semibold text-white transition
+								${getPatternColor(patternId)}
+								hover:scale-105 hover:opacity-80
+								${isPlayingThis ? 'shadow-lg ring-2 shadow-emerald-500/50 ring-emerald-400 ring-offset-2 ring-offset-slate-900' : ''}
+							`}
+							title="Click to change pattern"
+						>
+							{patternId}
+						</button>
+					{/each}
+					{#if patternIdSequence.length < MAX_MEASURES}
+						<button
+							type="button"
+							on:click={() => {
+								if (patterns.length > 0) {
+									patternIdSequence.push(patterns[0].id);
+								}
+							}}
+							class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs hover:bg-slate-800"
+							title="Add to sequence"
+						>
+							+
+						</button>
+					{/if}
+					{#if patternIdSequence.length > 1}
+						<button
+							type="button"
+							on:click={() => {
+								patternIdSequence = patternIdSequence.slice(0, -1);
+							}}
+							class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs hover:bg-slate-800"
+							title="Remove last"
+						>
+							−
+						</button>
+					{/if}
+				</div>
 			</div>
 		</section>
 	</div>
