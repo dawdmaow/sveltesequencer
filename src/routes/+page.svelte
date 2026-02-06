@@ -2,8 +2,10 @@
 	import { onDestroy } from 'svelte';
 
 	const MAX_STEPS = 32;
-	const NUM_PITCHES = 12;
-	const BASE_MIDI_NOTE = 60; // C4
+	const NUM_OCTAVES = 6;
+	const NUM_PITCHES = NUM_OCTAVES * 12;
+	const BASE_MIDI_NOTE = 48; // C3
+	const START_OCTAVE = 1;
 	const MIN_BPM = 40;
 	const MAX_BPM = 300;
 	const MIN_BEATS_PER_MEASURE = 1;
@@ -37,7 +39,12 @@
 	let timeoutId: number | null = null; // browser internal for the step scheduler
 	let _audioCtxCache: AudioContext | null = null; // browser internal
 
-	const noteNames = ['C4', 'C#4', 'D4', 'D#4', 'E4', 'F4', 'F#4', 'G4', 'G#4', 'A4', 'A#4', 'B4'];
+	function getNoteName(pitchIndex: number): string {
+		const chromatic = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+		const octave = START_OCTAVE + Math.floor((NUM_PITCHES - 1 - pitchIndex) / 12);
+		const note = chromatic[(NUM_PITCHES - 1 - pitchIndex) % 12];
+		return `${note}${octave}`;
+	}
 
 	function clampBpm(value: number): number {
 		if (!Number.isFinite(value)) return MIN_BPM;
@@ -260,27 +267,24 @@
 		</section>
 
 		<section
-			class="flex gap-2 overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/60 p-3 shadow-lg shadow-black/40"
+			class="flex gap-2 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/60 p-3 shadow-lg shadow-black/40"
 		>
-			<div class="flex flex-col justify-between py-6 pr-2 text-xs text-slate-400">
-				{#each [...Array(NUM_PITCHES).keys()] as i (i)}
-					<div class="flex h-8 items-center justify-end pr-1">
-						<span>{noteNames[NUM_PITCHES - 1 - i]}</span>
-					</div>
-				{/each}
-			</div>
-
-			<div class="relative flex-1">
-				<div class="grid auto-cols-[minmax(1.5rem,2.5rem)] grid-flow-col gap-0.5">
-					{#each notes.steps.slice(0, totalSteps()) as column, stepIndex (stepIndex)}
-						<div class="flex flex-col gap-0.5">
-							{#each column.pitches as active, pitchIndex (pitchIndex)}
+			<div class="flex max-h-[600px] flex-col gap-0.5 overflow-y-auto pt-6 pb-6">
+				{#each [...Array(NUM_PITCHES).keys()] as pitchIndex (pitchIndex)}
+					<div class="flex gap-2">
+						<div
+							class="flex w-16 flex-shrink-0 items-center justify-end pr-2 text-xs text-slate-400"
+						>
+							<span>{getNoteName(pitchIndex)}</span>
+						</div>
+						<div class="flex gap-0.5">
+							{#each notes.steps.slice(0, totalSteps()) as column, stepIndex (stepIndex)}
 								<button
 									type="button"
 									on:click={() => toggleCell(stepIndex, pitchIndex)}
-									class={`h-8 w-8 rounded-sm border text-xs transition
+									class={`h-8 w-8 flex-shrink-0 rounded-sm border text-xs transition
 										${
-											active
+											column.pitches[pitchIndex]
 												? 'border-emerald-400 bg-emerald-500/70 shadow-[0_0_10px_rgba(16,185,129,0.7)]'
 												: 'border-slate-800 bg-slate-900/70 hover:border-slate-600 hover:bg-slate-800'
 										}
@@ -294,8 +298,8 @@
 								></button>
 							{/each}
 						</div>
-					{/each}
-				</div>
+					</div>
+				{/each}
 			</div>
 		</section>
 	</div>
