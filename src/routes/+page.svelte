@@ -35,12 +35,32 @@
 	let bpm = 120;
 	let beatsPerMeasure = 4;
 	let stepsPerBeat = 4;
+	let key = 'C';
 
 	let timeoutId: number | null = null; // browser internal for the step scheduler
 	let _audioCtxCache: AudioContext | null = null; // browser internal
 
+	const keys = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+	const chromatic = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+	function getChromaticIndex(noteName: string): number {
+		return chromatic.indexOf(noteName);
+	}
+
+	function isRootNote(pitchIndex: number): boolean {
+		const noteInOctave = (NUM_PITCHES - 1 - pitchIndex) % 12;
+		const rootIndex = getChromaticIndex(key);
+		return noteInOctave === rootIndex;
+	}
+
+	function isFifthNote(pitchIndex: number): boolean {
+		const noteInOctave = (NUM_PITCHES - 1 - pitchIndex) % 12;
+		const rootIndex = getChromaticIndex(key);
+		const fifthIndex = (rootIndex + 7) % 12;
+		return noteInOctave === fifthIndex;
+	}
+
 	function getNoteName(pitchIndex: number): string {
-		const chromatic = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 		const octave = START_OCTAVE + Math.floor((NUM_PITCHES - 1 - pitchIndex) / 12);
 		const note = chromatic[(NUM_PITCHES - 1 - pitchIndex) % 12];
 		return `${note}${octave}`;
@@ -256,6 +276,20 @@
 			</div>
 
 			<div class="flex items-center gap-2 text-xs text-slate-400">
+				<label for="key" class="text-slate-300">Key</label>
+				<select
+					id="key"
+					bind:value={key}
+					class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-sm
+						focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
+				>
+					{#each keys as k (k)}
+						<option value={k}>{k}</option>
+					{/each}
+				</select>
+			</div>
+
+			<div class="flex items-center gap-2 text-xs text-slate-400">
 				<button
 					type="button"
 					on:click={clearPattern}
@@ -273,7 +307,12 @@
 				{#each [...Array(NUM_PITCHES).keys()] as pitchIndex (pitchIndex)}
 					<div class="flex gap-2">
 						<div
-							class="flex w-16 flex-shrink-0 items-center justify-end pr-2 text-xs text-slate-400"
+							class="flex w-16 flex-shrink-0 items-center justify-end pr-2 text-xs
+								{isRootNote(pitchIndex)
+								? 'font-semibold text-blue-400'
+								: isFifthNote(pitchIndex)
+									? 'font-semibold text-purple-400'
+									: 'text-slate-400'}"
 						>
 							<span>{getNoteName(pitchIndex)}</span>
 						</div>
@@ -285,8 +324,16 @@
 									class={`h-8 w-8 flex-shrink-0 rounded-sm border text-xs transition
 										${
 											column.pitches[pitchIndex]
-												? 'border-emerald-400 bg-emerald-500/70 shadow-[0_0_10px_rgba(16,185,129,0.7)]'
-												: 'border-slate-800 bg-slate-900/70 hover:border-slate-600 hover:bg-slate-800'
+												? isRootNote(pitchIndex)
+													? 'border-blue-400 bg-blue-500/70 shadow-lg shadow-blue-500/50'
+													: isFifthNote(pitchIndex)
+														? 'border-purple-400 bg-purple-500/70 shadow-lg shadow-purple-500/50'
+														: 'border-emerald-400 bg-emerald-500/70 shadow-lg shadow-emerald-500/50'
+												: isRootNote(pitchIndex)
+													? 'border-blue-800/50 bg-blue-900/30 hover:border-blue-700 hover:bg-blue-900/50'
+													: isFifthNote(pitchIndex)
+														? 'border-purple-800/50 bg-purple-900/30 hover:border-purple-700 hover:bg-purple-900/50'
+														: 'border-slate-800 bg-slate-900/70 hover:border-slate-600 hover:bg-slate-800'
 										}
 										${
 											isPlaying && currentStep === stepIndex
