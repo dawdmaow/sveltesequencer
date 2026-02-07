@@ -21,9 +21,24 @@
 		pitches: boolean[];
 	}
 
+	interface Synth {
+		id: string;
+		name: string;
+		oscType: OscillatorType;
+		volume: number;
+		attackMs: number;
+		releaseMs: number;
+	}
+
 	interface Pattern {
 		id: string;
-		steps: Step[];
+		layers: Step[][];
+	}
+
+	function createStepLayer(stepCount: number): Step[] {
+		return Array.from({ length: stepCount }, () => ({
+			pitches: Array(NUM_PITCHES).fill(false)
+		}));
 	}
 
 	function createPattern(id: string, beats: number, steps: number): Pattern {
@@ -32,9 +47,7 @@
 		const stepsCount = clampedBeats * clampedSteps;
 		return {
 			id,
-			steps: Array.from({ length: stepsCount }, () => ({
-				pitches: Array(NUM_PITCHES).fill(false)
-			}))
+			layers: [createStepLayer(stepsCount), createStepLayer(stepsCount)]
 		};
 	}
 
@@ -65,10 +78,11 @@
 	let key = $state('C');
 	let scale = $state<Scale>('Natural Minor');
 	let allowNonScaleNotes = $state(true);
-	let synthOscType = $state<OscillatorType>('square');
-	let synthVolume = $state(0.3);
-	let synthAttackMs = $state(10);
-	let synthReleaseMs = $state(100);
+	let synths = $state<Synth[]>([
+		{ id: '1', name: 'Synth 1', oscType: 'square', volume: 0.3, attackMs: 10, releaseMs: 100 },
+		{ id: '2', name: 'Synth 2', oscType: 'sine', volume: 0.2, attackMs: 5, releaseMs: 80 }
+	]);
+	let selectedSynthIndex = $state(0);
 	let isPainting = $state(false);
 	let paintTargetState = $state(true);
 	let selectedNotes = $state<Set<string>>(new Set()); // js is dumb, sets with non-primitive types assume ref semantics (so we use string as a substitute)
@@ -89,6 +103,12 @@
 			: selectedPatternId
 	);
 
+	function getCurrentLayer(): Step[] | null {
+		const pattern = patterns.find((p) => p.id === displayedPatternId);
+		if (!pattern || selectedSynthIndex >= pattern.layers.length) return null;
+		return pattern.layers[selectedSynthIndex];
+	}
+
 	function reset() {
 		patterns = PATTERN_IDS.map((id) => createPattern(id, 4, 4));
 		patternIdSequence = ['A'];
@@ -97,10 +117,11 @@
 		key = 'C';
 		scale = 'Natural Minor';
 		allowNonScaleNotes = true;
-		synthOscType = 'square';
-		synthVolume = 0.3;
-		synthAttackMs = 10;
-		synthReleaseMs = 100;
+		synths = [
+			{ id: '1', name: 'Synth 1', oscType: 'square', volume: 0.3, attackMs: 10, releaseMs: 100 },
+			{ id: '2', name: 'Synth 2', oscType: 'sine', volume: 0.2, attackMs: 5, releaseMs: 80 }
+		];
+		selectedSynthIndex = 0;
 		bpm = 120;
 		beatsPerMeasure = 4;
 		stepsPerBeat = 4;
@@ -274,20 +295,20 @@
 		return _audioCtxCache;
 	}
 
-	function playNote(midiNote: number, time: number, duration = 0.25) {
+	function playNote(midiNote: number, time: number, duration: number, synth: Synth) {
 		const ctx = ensureAudioContext();
 		const osc = ctx.createOscillator();
 		const gain = ctx.createGain();
 
-		osc.type = synthOscType;
+		osc.type = synth.oscType;
 		osc.frequency.value = midiToFreq(midiNote);
 
 		gain.gain.setValueAtTime(0, time);
-		const attackSec = synthAttackMs / 1000;
-		const releaseSec = synthReleaseMs / 1000;
-		gain.gain.linearRampToValueAtTime(synthVolume, time + attackSec);
+		const attackSec = synth.attackMs / 1000;
+		const releaseSec = synth.releaseMs / 1000;
+		gain.gain.linearRampToValueAtTime(synth.volume, time + attackSec);
 		const releaseStart = Math.max(time + attackSec, time + duration - releaseSec);
-		gain.gain.linearRampToValueAtTime(synthVolume, releaseStart);
+		gain.gain.linearRampToValueAtTime(synth.volume, releaseStart);
 		gain.gain.linearRampToValueAtTime(0, time + duration);
 
 		osc.connect(gain);
@@ -299,9 +320,9 @@
 
 	function setCell(step: number, pitchIndex: number, state: boolean) {
 		if (!allowNonScaleNotes && !isInScale(pitchIndex)) return;
-		const pattern = patterns.find((p) => p.id === displayedPatternId);
-		if (!pattern || step >= pattern.steps.length) return;
-		pattern.steps[step].pitches[pitchIndex] = state;
+		const layer = getCurrentLayer();
+		if (!layer || step >= layer.length) return;
+		layer[step].pitches[pitchIndex] = state;
 	}
 
 	function isNoteSelected(step: number, pitch: number): boolean {
@@ -340,12 +361,12 @@
 		minPitch: number;
 		maxPitch: number;
 	}) {
-		const pattern = patterns.find((p) => p.id === displayedPatternId);
-		if (!pattern) return;
+		const layer = getCurrentLayer();
+		if (!layer) return;
 		const next = new Set(selectedNotes);
 		for (let s = rect.minStep; s <= rect.maxStep; s++) {
 			for (let p = rect.minPitch; p <= rect.maxPitch; p++) {
-				if (pattern.steps[s]?.pitches[p]) {
+				if (layer[s]?.pitches[p]) {
 					next.add(`${s}-${p}`);
 				}
 			}
@@ -361,21 +382,21 @@
 	}
 
 	function clearNotesAt(positions: Array<{ step: number; pitch: number }>) {
-		const pattern = patterns.find((p) => p.id === displayedPatternId);
-		if (!pattern) return;
+		const layer = getCurrentLayer();
+		if (!layer) return;
 		for (const { step, pitch } of positions) {
-			if (pattern.steps[step]) {
-				pattern.steps[step].pitches[pitch] = false;
+			if (layer[step]) {
+				layer[step].pitches[pitch] = false;
 			}
 		}
 	}
 
 	function setNotesAt(positions: Array<{ step: number; pitch: number }>) {
-		const pattern = patterns.find((p) => p.id === displayedPatternId);
-		if (!pattern) return;
+		const layer = getCurrentLayer();
+		if (!layer) return;
 		for (const { step, pitch } of positions) {
-			if (step >= 0 && step < pattern.steps.length && pitch >= 0 && pitch < NUM_PITCHES) {
-				pattern.steps[step].pitches[pitch] = true;
+			if (step >= 0 && step < layer.length && pitch >= 0 && pitch < NUM_PITCHES) {
+				layer[step].pitches[pitch] = true;
 			}
 		}
 	}
@@ -420,9 +441,9 @@
 		} else if (isDragging && dragStartCell) {
 			const deltaStep = stepIndex - dragStartCell.step;
 			const deltaPitch = pitchIndex - dragStartCell.pitch;
-			const pattern = patterns.find((p) => p.id === displayedPatternId);
-			if (!pattern) return;
-			const stepsLen = pattern.steps.length;
+			const layer = getCurrentLayer();
+			if (!layer) return;
+			const stepsLen = layer.length;
 			clearNotesAt(dragLastPositions.length > 0 ? dragLastPositions : dragStartNotes);
 			setNotesAt(dragOverwrittenNotes);
 			const newPositions = dragStartNotes
@@ -431,7 +452,7 @@
 					pitch: n.pitch + deltaPitch
 				}))
 				.filter((n) => n.step >= 0 && n.step < stepsLen && n.pitch >= 0 && n.pitch < NUM_PITCHES);
-			const overwritten = newPositions.filter((p) => pattern.steps[p.step]?.pitches[p.pitch]);
+			const overwritten = newPositions.filter((p) => layer[p.step]?.pitches[p.pitch]);
 			setNotesAt(newPositions);
 			dragLastPositions = newPositions;
 			dragOverwrittenNotes = overwritten;
@@ -449,6 +470,7 @@
 	function playStep(step: number) {
 		const ctx = ensureAudioContext();
 		const time = ctx.currentTime;
+		const duration = stepDurationSeconds() * 0.9;
 		const stepsPerPat = stepsPerPattern();
 		const sequenceIndex = Math.floor(step / stepsPerPat);
 		const stepInPattern = step % stepsPerPat;
@@ -458,17 +480,23 @@
 		}
 
 		const patternId = patternIdSequence[sequenceIndex];
-
 		const pattern = patterns.find((p) => p.id === patternId);
-		if (!pattern || stepInPattern >= pattern.steps.length) {
+		if (!pattern) {
 			return;
 		}
 
-		const pitches = pattern.steps[stepInPattern].pitches;
-		for (const [pitchIndex, active] of pitches.entries()) {
-			if (active) {
-				const midi = BASE_MIDI_NOTE + (NUM_PITCHES - 1 - pitchIndex);
-				playNote(midi, time, stepDurationSeconds() * 0.9);
+		for (let synthIndex = 0; synthIndex < synths.length; synthIndex++) {
+			const layer = pattern.layers[synthIndex];
+			const synth = synths[synthIndex];
+			if (!layer || stepInPattern >= layer.length || !synth) {
+				continue;
+			}
+			const pitches = layer[stepInPattern].pitches;
+			for (const [pitchIndex, active] of pitches.entries()) {
+				if (active) {
+					const midi = BASE_MIDI_NOTE + (NUM_PITCHES - 1 - pitchIndex);
+					playNote(midi, time, duration, synth);
+				}
 			}
 		}
 	}
@@ -513,11 +541,8 @@
 
 	function clearPattern() {
 		const patternIndex = patterns.findIndex((p) => p.id === displayedPatternId);
-		const pattern = patterns[patternIndex];
-		if (!pattern) return;
-
-		const clearedPattern = createPattern(displayedPatternId, beatsPerMeasure, stepsPerBeat);
-		patterns[patternIndex] = clearedPattern;
+		if (patternIndex < 0) return;
+		patterns[patternIndex] = createPattern(displayedPatternId, beatsPerMeasure, stepsPerBeat);
 	}
 
 	$effect(() => {
@@ -530,21 +555,17 @@
 
 	$effect(() => {
 		const stepsPerPat = stepsPerPattern();
-		const needsUpdate = patterns.some((pattern) => pattern.steps.length !== stepsPerPat);
-		if (!needsUpdate) return;
-
 		for (const pattern of patterns) {
-			const currentSteps = pattern.steps.length;
-			if (currentSteps === stepsPerPat) continue;
-
-			if (stepsPerPat > currentSteps) {
-				for (let i = currentSteps; i < stepsPerPat; i++) {
-					pattern.steps.push({
-						pitches: Array(NUM_PITCHES).fill(false)
-					});
+			for (const layer of pattern.layers) {
+				if (layer.length !== stepsPerPat) {
+					if (stepsPerPat > layer.length) {
+						for (let i = layer.length; i < stepsPerPat; i++) {
+							layer.push({ pitches: Array(NUM_PITCHES).fill(false) });
+						}
+					} else {
+						layer.length = stepsPerPat;
+					}
 				}
-			} else {
-				pattern.steps.length = stepsPerPat;
 			}
 		}
 	});
@@ -664,11 +685,29 @@
 				/>
 			</div>
 
+			<div class="flex items-center gap-1">
+				{#each synths as synth, idx (synth.id)}
+					<button
+						type="button"
+						on:click={() => {
+							selectedSynthIndex = idx;
+							selectedNotes = new Set();
+						}}
+						class="rounded-md px-3 py-1.5 text-sm transition
+							{selectedSynthIndex === idx
+							? 'bg-emerald-600 text-white'
+							: 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-300'}"
+					>
+						{synth.name}
+					</button>
+				{/each}
+			</div>
+
 			<div class="flex items-center gap-2 text-xs text-slate-400">
 				<label for="osc" class="text-slate-300">Osc</label>
 				<select
 					id="osc"
-					bind:value={synthOscType}
+					bind:value={synths[selectedSynthIndex].oscType}
 					class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-sm
 						focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
 				>
@@ -687,10 +726,12 @@
 					min="0"
 					max="1"
 					step="0.01"
-					bind:value={synthVolume}
+					bind:value={synths[selectedSynthIndex].volume}
 					class="w-20 accent-emerald-500"
 				/>
-				<span class="w-8 text-right text-slate-400">{Math.round(synthVolume * 100)}%</span>
+				<span class="w-8 text-right text-slate-400"
+					>{Math.round(synths[selectedSynthIndex].volume * 100)}%</span
+				>
 			</div>
 
 			<div class="flex items-center gap-2 text-sm">
@@ -701,11 +742,11 @@
 					min="1"
 					max="100"
 					step="1"
-					bind:value={synthAttackMs}
+					bind:value={synths[selectedSynthIndex].attackMs}
 					class="w-20 accent-emerald-500"
 				/>
 				<span class="min-w-12 shrink-0 text-right whitespace-nowrap text-slate-400"
-					>{synthAttackMs} ms</span
+					>{synths[selectedSynthIndex].attackMs} ms</span
 				>
 			</div>
 
@@ -717,11 +758,11 @@
 					min="1"
 					max="500"
 					step="1"
-					bind:value={synthReleaseMs}
+					bind:value={synths[selectedSynthIndex].releaseMs}
 					class="w-20 accent-emerald-500"
 				/>
 				<span class="min-w-12 shrink-0 text-right whitespace-nowrap text-slate-400"
-					>{synthReleaseMs} ms</span
+					>{synths[selectedSynthIndex].releaseMs} ms</span
 				>
 			</div>
 
@@ -792,7 +833,7 @@
 							<span>{getNoteName(pitchIndex)}</span>
 						</div>
 						<div class="flex gap-0.5">
-							{#each patterns.find((p) => p.id === displayedPatternId)?.steps || [] as column, stepIndex (stepIndex)}
+							{#each getCurrentLayer() || [] as column, stepIndex (stepIndex)}
 								{@const stepsPerPat = stepsPerPattern()}
 								{@const currentPatternIndex = Math.floor(currentStep / stepsPerPat)}
 								{@const currentStepInPattern = currentStep % stepsPerPat}
