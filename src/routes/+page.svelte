@@ -94,6 +94,7 @@
 	let dragStartNotes = $state<Array<{ step: number; pitch: number }>>([]);
 	let dragLastPositions = $state<Array<{ step: number; pitch: number }>>([]);
 	let dragOverwrittenNotes = $state<Array<{ step: number; pitch: number }>>([]);
+	let isCloning = $state(false);
 
 	let selectedPatternId = $derived(sequence[selectedSequenceIndex] ?? MIN_PATTERN_ID);
 
@@ -427,6 +428,7 @@
 			dragStartCell = { step: stepIndex, pitch: pitchIndex };
 			dragLastPositions = [];
 			dragOverwrittenNotes = [];
+			isCloning = e.altKey;
 			isDragging = true;
 		} else {
 			selectedNotes = new Set();
@@ -440,23 +442,44 @@
 		if (isSelectingRect) {
 			selectionRectExtent = { step: stepIndex, pitch: pitchIndex };
 		} else if (isDragging && dragStartCell) {
+			// NOTE: we are dragging the notes
+
 			const deltaStep = stepIndex - dragStartCell.step;
 			const deltaPitch = pitchIndex - dragStartCell.pitch;
 			const layer = getCurrentLayer();
-			if (!layer) return;
+			if (!layer) {
+				return;
+			}
 			const stepsLen = layer.length;
-			clearNotesAt(dragLastPositions.length > 0 ? dragLastPositions : dragStartNotes);
+
+			// NOTE: we remove notes that are are currently being grabbed
+			if (isCloning) {
+				clearNotesAt(dragLastPositions);
+			} else {
+				if (dragLastPositions.length > 0) {
+					clearNotesAt(dragLastPositions);
+				} else {
+					clearNotesAt(dragStartNotes); // NOTE: we do this because lastPositions being empty implies we have just started the drag
+				}
+			}
+
+			// NOTE: we set notes that are being overwritten (by the grabbed notes)
 			setNotesAt(dragOverwrittenNotes);
-			const newPositions = dragStartNotes
+
+			// NOTE: we calculate the new positions of the grabbed notes
+			const newLastPositions = dragStartNotes
 				.map((n) => ({
 					step: n.step + deltaStep,
 					pitch: n.pitch + deltaPitch
 				}))
 				.filter((n) => n.step >= 0 && n.step < stepsLen && n.pitch >= 0 && n.pitch < NUM_PITCHES);
-			const overwritten = newPositions.filter((p) => layer[p.step]?.pitches[p.pitch]);
-			setNotesAt(newPositions);
-			dragLastPositions = newPositions;
-			dragOverwrittenNotes = overwritten;
+
+			// NOTE: we calculate the notes that are being overwritten (by the grabbed notes)
+			const newOverwrittenNotes = newLastPositions.filter((p) => layer[p.step]?.pitches[p.pitch]);
+
+			setNotesAt(newLastPositions);
+			dragLastPositions = newLastPositions;
+			dragOverwrittenNotes = newOverwrittenNotes;
 		} else if (isPainting && !isDisabled) {
 			setCell(stepIndex, pitchIndex, paintTargetState);
 		}
@@ -610,6 +633,7 @@
 		}
 		isPainting = false;
 		isDragging = false;
+		isCloning = false;
 		dragStartCell = null;
 	}}
 />
