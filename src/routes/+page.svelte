@@ -25,7 +25,19 @@
 	type PatternId = number;
 
 	interface Step {
-		pitches: boolean[];
+		pitches: bigint;
+	}
+
+	function getPitch(step: Step, pitchIndex: number): boolean {
+		return ((step.pitches >> BigInt(pitchIndex)) & 1n) === 1n;
+	}
+
+	function setPitch(step: Step, pitchIndex: number, state: boolean): void {
+		if (state) {
+			step.pitches = step.pitches | (1n << BigInt(pitchIndex));
+		} else {
+			step.pitches = step.pitches & ~(1n << BigInt(pitchIndex));
+		}
 	}
 
 	interface Synth {
@@ -47,7 +59,7 @@
 
 	function createStepLayer(stepCount: number): Step[] {
 		return Array.from({ length: stepCount }, () => ({
-			pitches: Array(NUM_PITCHES).fill(false)
+			pitches: 0n
 		}));
 	}
 
@@ -170,10 +182,31 @@
 		selectedSynthIndex?: number;
 	}
 
+	function migratePitches(pitches: string | boolean[] | bigint): bigint {
+		if (typeof pitches === 'bigint') return pitches;
+		if (typeof pitches === 'string') return BigInt(pitches);
+		if (Array.isArray(pitches)) {
+			let bits = 0n;
+			for (let i = 0; i < pitches.length; i++) {
+				if (pitches[i]) bits |= 1n << BigInt(i);
+			}
+			return bits;
+		}
+		return 0n;
+	}
+
 	function serializeState(): string {
-		const data: Persisted = {
-			version: 1,
-			patterns,
+		const data = {
+			version: 1 as const,
+			patterns: patterns.map((p) => ({
+				...p,
+				layers: p.layers.map((layer) =>
+					layer.map((step) => ({
+						...step,
+						pitches: step.pitches.toString()
+					}))
+				)
+			})),
 			sequence,
 			bpm,
 			stepsPerBeat,
@@ -196,7 +229,15 @@
 	}
 
 	function applyState(data: Persisted) {
-		patterns = data.patterns;
+		patterns = data.patterns.map((p) => ({
+			...p,
+			layers: p.layers.map((layer) =>
+				layer.map((step) => ({
+					...step,
+					pitches: migratePitches((step as unknown as { pitches: string | boolean[] }).pitches)
+				}))
+			)
+		}));
 		sequence = data.sequence;
 		selectedSequenceIndex = data.selectedSequenceIndex ?? 0;
 		selectedNotes = new Set();
@@ -489,7 +530,7 @@
 		if (!allowNonScaleNotes && !isInScale(pitchIndex)) return;
 		const layer = getCurrentLayer();
 		if (!layer || step >= layer.length) return;
-		layer[step].pitches[pitchIndex] = state;
+		setPitch(layer[step], pitchIndex, state);
 	}
 
 	function isNoteSelected(step: number, pitch: number): boolean {
@@ -533,7 +574,7 @@
 		const next = new Set(selectedNotes);
 		for (let s = rect.minStep; s <= rect.maxStep; s++) {
 			for (let p = rect.minPitch; p <= rect.maxPitch; p++) {
-				if (layer[s]?.pitches[p]) {
+				if (layer[s] && getPitch(layer[s], p)) {
 					next.add(`${s}-${p}`);
 				}
 			}
@@ -553,7 +594,7 @@
 		if (!layer) return;
 		for (const { step, pitch } of positions) {
 			if (layer[step]) {
-				layer[step].pitches[pitch] = false;
+				setPitch(layer[step], pitch, false);
 			}
 		}
 	}
@@ -563,7 +604,7 @@
 		if (!layer) return;
 		for (const { step, pitch } of positions) {
 			if (step >= 0 && step < layer.length && pitch >= 0 && pitch < NUM_PITCHES) {
-				layer[step].pitches[pitch] = true;
+				setPitch(layer[step], pitch, true);
 			}
 		}
 	}
@@ -661,7 +702,9 @@
 				.filter((n) => n.step >= 0 && n.step < stepsLen && n.pitch >= 0 && n.pitch < NUM_PITCHES);
 
 			// NOTE: we calculate the notes that are being overwritten (by the grabbed notes)
-			const newOverwrittenNotes = newLastPositions.filter((p) => layer[p.step]?.pitches[p.pitch]);
+			const newOverwrittenNotes = newLastPositions.filter(
+				(p) => layer[p.step] && getPitch(layer[p.step], p.pitch)
+			);
 
 			setNotesAt(newLastPositions);
 			dragLastPositions = newLastPositions;
@@ -697,9 +740,9 @@
 				continue;
 			}
 			const duration = synth.legatoSameNote ? stepDur * 2 : stepDur * 0.9;
-			const pitches = layer[stepInPattern].pitches;
-			for (const [pitchIndex, active] of pitches.entries()) {
-				if (active) {
+			const step = layer[stepInPattern];
+			for (let pitchIndex = 0; pitchIndex < NUM_PITCHES; pitchIndex++) {
+				if (getPitch(step, pitchIndex)) {
 					const midi = BASE_MIDI_NOTE + (NUM_PITCHES - 1 - pitchIndex);
 					playNote(midi, time, duration, synth);
 				}
@@ -803,7 +846,7 @@
 				if (layer.length !== stepsPerPat) {
 					if (stepsPerPat > layer.length) {
 						for (let i = layer.length; i < stepsPerPat; i++) {
-							layer.push({ pitches: Array(NUM_PITCHES).fill(false) });
+							layer.push({ pitches: 0n });
 						}
 					} else {
 						layer.length = stepsPerPat;
@@ -988,7 +1031,7 @@
 									at.patternId === displayedPatternId &&
 									at.stepInPattern === stepIndex}
 								{@const isDisabled = !allowNonScaleNotes && !isInScale(pitchIndex)}
-								{@const hasNote = column.pitches[pitchIndex]}
+								{@const hasNote = getPitch(column, pitchIndex)}
 								{@const noteSelected = isNoteSelected(stepIndex, pitchIndex)}
 								{@const inSelectionRect = isInSelectionRect(stepIndex, pitchIndex)}
 								{@const isBeatStart =
@@ -1004,7 +1047,7 @@
 										})}
 									on:mouseenter={() => handleCellMouseenter(stepIndex, pitchIndex, isDisabled)}
 									class={`h-[22px] w-[36px] flex-shrink-0 rounded-sm border text-xs transition-[background-color,filter]
-										${getCellClasses(pitchIndex, column.pitches[pitchIndex])}
+										${getCellClasses(pitchIndex, getPitch(column, pitchIndex))}
 										${isBeatStart && !isPlayingThisStep ? 'border-l-2 border-l-slate-700' : ''}
 										${isPlayingThisStep ? 'border-l-2 border-l-amber-400/90' : ''}
 										${isPlayingThisStep && hasNote ? 'animate-note-pulse' : ''}
