@@ -778,6 +778,77 @@
 			</p>
 		</header>
 
+		<details class="rounded-lg border border-slate-800 bg-slate-900/60 text-sm text-slate-400">
+			<summary class="cursor-pointer px-4 py-2 font-medium text-slate-300">Instructions</summary>
+			<div class="px-4 py-3">
+				<table class="w-full min-w-[20rem] text-left text-slate-400">
+					<tbody>
+						<tr><td class="font-medium text-slate-300">Piano roll</td><td></td></tr>
+						<tr
+							><td class="py-1 pr-4 align-top"><span class="act">click</span></td><td class="py-1"
+								>toggle</td
+							></tr
+						>
+						<tr
+							><td class="py-1 pr-4 align-top"
+								><kbd class="kbd">Cmd</kbd>/<kbd class="kbd">Ctrl</kbd> +
+								<span class="act">drag</span></td
+							><td class="py-1">select rect</td></tr
+						>
+						<tr
+							><td class="py-1 pr-4 align-top"
+								><kbd class="kbd">Shift</kbd> + <span class="act">click</span></td
+							><td class="py-1">add/remove from selection</td></tr
+						>
+						<tr
+							><td class="py-1 pr-4 align-top"><span class="act">drag</span></td><td class="py-1"
+								>move</td
+							></tr
+						>
+						<tr
+							><td class="py-1 pr-4 align-top"
+								><kbd class="kbd">Option</kbd>/<kbd class="kbd">Alt</kbd> +
+								<span class="act">drag</span></td
+							><td class="py-1">clone</td></tr
+						>
+						<tr><td class="font-medium text-slate-300">Notes</td><td></td></tr>
+						<tr
+							><td class="py-1 pr-4 align-top"><kbd class="kbd">Arrows</kbd></td><td class="py-1"
+								>move selection</td
+							></tr
+						>
+						<tr
+							><td class="py-1 pr-4 align-top"><kbd class="kbd">Delete</kbd></td><td class="py-1"
+								>remove selection</td
+							></tr
+						>
+						<tr
+							><td class="py-1 pr-4 align-top"><kbd class="kbd">Escape</kbd></td><td class="py-1"
+								>deselect</td
+							></tr
+						>
+						<tr><td class="font-medium text-slate-300">Sequence cells</td><td></td></tr>
+						<tr
+							><td class="py-1 pr-4 align-top"
+								><kbd class="kbd">Arrows</kbd> <span class="opt">up/down</span></td
+							><td class="py-1">cycle pattern</td></tr
+						>
+						<tr
+							><td class="py-1 pr-4 align-top"
+								><kbd class="kbd">Arrows</kbd> <span class="opt">left/right</span></td
+							><td class="py-1">reorder</td></tr
+						>
+						<tr><td class="font-medium text-slate-300">Transport</td><td></td></tr>
+						<tr
+							><td class="py-1 pr-4 align-top"><kbd class="kbd">Space</kbd></td><td class="py-1"
+								><span class="opt">play/stop</span></td
+							></tr
+						>
+					</tbody>
+				</table>
+			</div>
+		</details>
+
 		<section class="flex flex-wrap items-center gap-4">
 			<button
 				type="button"
@@ -1173,3 +1244,21 @@
 		</section>
 	</div>
 </main>
+
+<style>
+	.kbd {
+		display: inline;
+		font-family: ui-monospace, monospace;
+		font-size: 0.75rem;
+		padding: 0.125rem 0.375rem;
+		border-radius: 0.25rem;
+		border: 1px solid rgb(71 85 105);
+		background: rgb(30 41 59);
+	}
+	.act {
+		color: rgb(148 163 184);
+	}
+	.opt {
+		color: rgb(148 163 184);
+	}
+</style>
