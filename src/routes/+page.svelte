@@ -612,6 +612,15 @@
 				clearNotesAt(getSelectedNotesArray());
 				selectedNotes = new Set();
 			}
+		} else if (e.key === 'Escape') {
+			if (selectedNotes.size > 0 || isSelectingRect) {
+				// TODO: this doesnt close selecting rect, probably due to some preventDefault
+				e.preventDefault();
+				selectedNotes = new Set();
+				selectionRectAnchor = null;
+				selectionRectExtent = null;
+				isSelectingRect = false;
+			}
 		} else if (e.key === ' ') {
 			e.preventDefault();
 			if (isPlaying) {
