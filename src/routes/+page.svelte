@@ -326,6 +326,18 @@
 		const nextId =
 			((currentId - MIN_PATTERN_ID + direction + MAX_PATTERNS) % MAX_PATTERNS) + MIN_PATTERN_ID;
 		sequence[seqIndex] = nextId;
+		selectedSequenceIndex = seqIndex;
+	}
+
+	function movePatternInSequence(seqIndex: number, direction: -1 | 1) {
+		if (direction === -1 && seqIndex === 0) return;
+		if (direction === 1 && seqIndex >= sequence.length - 1) return;
+		const other = seqIndex + direction;
+		const next = [...sequence];
+		[next[seqIndex], next[other]] = [next[other], next[seqIndex]];
+		sequence = next;
+		selectedSequenceIndex = other;
+		setTimeout(() => document.getElementById(`seq-cell-${other}`)?.focus(), 0);
 	}
 
 	function totalSteps(): number {
@@ -1073,6 +1085,7 @@
 							isPlaying && getPatternAtStep(currentStep)?.patternIndex === seqIndex}
 						{@const isSelected = selectedSequenceIndex === seqIndex}
 						<div
+							id="seq-cell-{seqIndex}"
 							role="button"
 							tabindex="0"
 							on:click={() => {
@@ -1082,6 +1095,18 @@
 								if (e.key === 'Enter' || e.key === ' ') {
 									e.preventDefault();
 									selectedSequenceIndex = seqIndex;
+								} else if (
+									e.key === 'ArrowUp' ||
+									e.key === 'ArrowDown' ||
+									e.key === 'ArrowLeft' ||
+									e.key === 'ArrowRight'
+								) {
+									e.preventDefault();
+									e.stopPropagation();
+									if (e.key === 'ArrowUp') cyclePatternAtPosition(seqIndex, 1);
+									else if (e.key === 'ArrowDown') cyclePatternAtPosition(seqIndex, -1);
+									else if (e.key === 'ArrowLeft') movePatternInSequence(seqIndex, -1);
+									else if (e.key === 'ArrowRight') movePatternInSequence(seqIndex, 1);
 								}
 							}}
 							class={`flex min-w-[2.5rem] cursor-pointer flex-col items-center rounded-md px-2 py-1 transition
