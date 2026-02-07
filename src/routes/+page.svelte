@@ -446,6 +446,27 @@
 		}
 	}
 
+	function moveSelectedNotes(deltaStep: number, deltaPitch: number) {
+		const notes = getSelectedNotesArray();
+		const layer = getCurrentLayer();
+		if (notes.length === 0 || !layer) {
+			return;
+		}
+		const newPositions = notes.map((n) => ({
+			step: n.step + deltaStep,
+			pitch: n.pitch + deltaPitch
+		}));
+		const inBounds = newPositions.every(
+			(p) => p.step >= 0 && p.step < layer.length && p.pitch >= 0 && p.pitch < NUM_PITCHES
+		);
+		if (!inBounds) {
+			return;
+		}
+		clearNotesAt(notes);
+		setNotesAt(newPositions);
+		selectedNotes = new Set(newPositions.map((p) => `${p.step}-${p.pitch}`));
+	}
+
 	function handleCellMousedown(
 		stepIndex: number,
 		pitchIndex: number,
@@ -670,6 +691,21 @@
 				selectionRectExtent = null;
 				isSelectingRect = false;
 			}
+		} else if (
+			selectedNotes.size > 0 &&
+			(e.key === 'ArrowUp' ||
+				e.key === 'ArrowDown' ||
+				e.key === 'ArrowLeft' ||
+				e.key === 'ArrowRight')
+		) {
+			e.preventDefault();
+			let deltaStep = 0;
+			let deltaPitch = 0;
+			if (e.key === 'ArrowUp') deltaPitch = -1;
+			else if (e.key === 'ArrowDown') deltaPitch = 1;
+			else if (e.key === 'ArrowLeft') deltaStep = -1;
+			else if (e.key === 'ArrowRight') deltaStep = 1;
+			moveSelectedNotes(deltaStep, deltaPitch);
 		} else if (e.key === ' ') {
 			e.preventDefault();
 			if (isPlaying) {
