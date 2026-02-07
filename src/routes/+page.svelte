@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { replaceState } from '$app/navigation';
 	import LZString from 'lz-string';
 
@@ -840,6 +840,7 @@
 	// });
 
 	$effect(() => {
+		// NOTE: adjust lengths of patterns to settings
 		for (const pattern of patterns) {
 			const stepsPerPat = stepsPerPattern(pattern.id);
 			for (const layer of pattern.layers) {
@@ -854,6 +855,17 @@
 				}
 			}
 		}
+	});
+
+	onMount(() => {
+		requestAnimationFrame(() => {
+			// const navEntry = performance.getEntriesByType('navigation')[0] as
+			// 	| PerformanceNavigationTiming
+			// 	| undefined;
+			// if (navEntry?.type !== 'reload') {
+			document.querySelector('[data-note="C3"]')?.scrollIntoView({ block: 'center' });
+			// }
+		});
 	});
 
 	onDestroy(() => {
@@ -1014,7 +1026,7 @@
 				class="flex max-h-[60vh] min-w-0 flex-1 flex-col gap-px overflow-x-auto overflow-y-auto pt-6 pb-6"
 			>
 				{#each [...Array(NUM_PITCHES).keys()] as pitchIndex (pitchIndex)}
-					<div class="flex gap-1">
+					<div class="flex gap-1" data-note={getNoteName(pitchIndex)}>
 						<div
 							class="flex w-12 flex-shrink-0 items-center justify-end pr-1.5 text-[10px] font-medium {getNoteLabelClasses(
 								pitchIndex
