@@ -758,17 +758,32 @@
 		};
 	});
 
+	function flushStateToUrl() {
+		const json = serializeState();
+		const compressed = LZString.compressToEncodedURIComponent(json);
+		replaceState(window.location.pathname + window.location.search + '#' + compressed, {});
+		console.log('flushed');
+	}
+
 	$effect(() => {
 		if (typeof window === 'undefined') return;
 		serializeState();
 		let timeout: number;
-		timeout = window.setTimeout(() => {
-			const json = serializeState();
-			const compressed = LZString.compressToEncodedURIComponent(json);
-			replaceState(window.location.pathname + window.location.search + '#' + compressed, {});
-		}, 400);
+		timeout = window.setTimeout(flushStateToUrl, 1000);
 		return () => clearTimeout(timeout);
 	});
+
+	// NOTE: didn't work as expected
+	// $effect(() => {
+	// 	if (typeof window === 'undefined') return;
+	// 	const onBeforeUnload = () => flushStateToUrl();
+	// 	window.addEventListener('beforeunload', onBeforeUnload);
+	// 	window.addEventListener('pagehide', onBeforeUnload);
+	// 	return () => {
+	// 		window.removeEventListener('beforeunload', onBeforeUnload);
+	// 		window.removeEventListener('pagehide', onBeforeUnload);
+	// 	};
+	// });
 
 	$effect(() => {
 		for (const pattern of patterns) {
