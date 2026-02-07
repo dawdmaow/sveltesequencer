@@ -33,6 +33,7 @@
 		volume: number;
 		attackMs: number;
 		releaseMs: number;
+		legatoSameNote: boolean;
 	}
 
 	interface Pattern {
@@ -83,7 +84,6 @@
 	let key = $state('C');
 	let scale = $state<Scale>('Natural Minor');
 	let allowNonScaleNotes = $state(true);
-	let legatoSameNote = $state(false);
 	let synths = $state<Synth[]>([]);
 	let selectedSynthIndex = $state(0);
 	let isPainting = $state(false);
@@ -124,8 +124,24 @@
 		scale = 'Natural Minor';
 		allowNonScaleNotes = true;
 		synths = [
-			{ id: 0, name: 'Synth 1', oscType: 'square', volume: 0.3, attackMs: 10, releaseMs: 100 },
-			{ id: 1, name: 'Synth 2', oscType: 'sine', volume: 0.2, attackMs: 5, releaseMs: 80 }
+			{
+				id: 0,
+				name: 'Synth 1',
+				oscType: 'square',
+				volume: 0.3,
+				attackMs: 10,
+				releaseMs: 100,
+				legatoSameNote: false
+			},
+			{
+				id: 1,
+				name: 'Synth 2',
+				oscType: 'sine',
+				volume: 0.2,
+				attackMs: 5,
+				releaseMs: 80,
+				legatoSameNote: false
+			}
 		];
 		selectedSynthIndex = 0;
 		bpm = 120;
@@ -303,7 +319,7 @@
 	function playNote(midiNote: number, time: number, duration: number, synth: Synth) {
 		const ctx = ensureAudioContext();
 		const key = `${synth.id}-${midiNote}`;
-		if (legatoSameNote) {
+		if (synth.legatoSameNote) {
 			const existing = activeNotes.get(key);
 			if (existing && ctx.currentTime < existing.releaseAt - 0.02) {
 				existing.gain.gain.cancelScheduledValues(time);
@@ -340,7 +356,7 @@
 		gain.connect(ctx.destination);
 
 		osc.start(time);
-		if (legatoSameNote) {
+		if (synth.legatoSameNote) {
 			activeNotes.set(key, { osc, gain, releaseAt: time + duration });
 		} else {
 			osc.stop(time + duration + 0.05);
@@ -522,7 +538,6 @@
 		const ctx = ensureAudioContext();
 		const time = ctx.currentTime;
 		const stepDur = stepDurationSeconds();
-		const duration = legatoSameNote ? stepDur * 2 : stepDur * 0.9;
 		const stepsPerPat = stepsPerPattern();
 		const sequenceIndex = Math.floor(step / stepsPerPat);
 		const stepInPattern = step % stepsPerPat;
@@ -543,6 +558,7 @@
 			if (!layer || stepInPattern >= layer.length || !synth) {
 				continue;
 			}
+			const duration = synth.legatoSameNote ? stepDur * 2 : stepDur * 0.9;
 			const pitches = layer[stepInPattern].pitches;
 			for (const [pitchIndex, active] of pitches.entries()) {
 				if (active) {
@@ -764,13 +780,6 @@
 				/>
 			</div>
 
-			<div class="flex items-center gap-2 text-sm">
-				<label class="flex cursor-pointer items-center gap-2 text-slate-300">
-					<input type="checkbox" bind:checked={legatoSameNote} class="rounded" />
-					Legato same note
-				</label>
-			</div>
-
 			<div class="flex items-center gap-1">
 				{#each synths as synth, idx (synth.id)}
 					<button
@@ -850,6 +859,17 @@
 				<span class="min-w-12 shrink-0 text-right whitespace-nowrap text-slate-400"
 					>{synths[selectedSynthIndex].releaseMs} ms</span
 				>
+			</div>
+
+			<div class="flex items-center gap-2 text-sm">
+				<label class="flex cursor-pointer items-center gap-2 text-slate-300">
+					<input
+						type="checkbox"
+						bind:checked={synths[selectedSynthIndex].legatoSameNote}
+						class="rounded"
+					/>
+					Legato
+				</label>
 			</div>
 
 			<div class="flex items-center gap-2 text-xs text-slate-400">
