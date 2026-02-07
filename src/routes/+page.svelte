@@ -580,11 +580,23 @@
 
 <svelte:window
 	on:keydown={(e) => {
-		if (e.key !== ' ') return;
-		if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-		e.preventDefault();
-		if (isPlaying) stop();
-		else start();
+		if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+			return;
+		}
+		if (e.key === 'Delete' || e.key === 'Backspace') {
+			if (selectedNotes.size > 0) {
+				e.preventDefault();
+				clearNotesAt(getSelectedNotesArray());
+				selectedNotes = new Set();
+			}
+		} else if (e.key === ' ') {
+			e.preventDefault();
+			if (isPlaying) {
+				stop();
+			} else {
+				start();
+			}
+		}
 	}}
 	on:mouseup={() => {
 		if (isSelectingRect) {
