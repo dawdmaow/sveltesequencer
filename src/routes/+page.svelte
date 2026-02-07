@@ -333,9 +333,7 @@
 		if (direction === -1 && seqIndex === 0) return;
 		if (direction === 1 && seqIndex >= sequence.length - 1) return;
 		const other = seqIndex + direction;
-		const next = [...sequence];
-		[next[seqIndex], next[other]] = [next[other], next[seqIndex]];
-		sequence = next;
+		[sequence[seqIndex], sequence[other]] = [sequence[other], sequence[seqIndex]];
 		selectedSequenceIndex = other;
 		setTimeout(() => document.getElementById(`seq-cell-${other}`)?.focus(), 0);
 	}
