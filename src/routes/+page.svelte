@@ -38,6 +38,8 @@
 
 	interface Pattern {
 		id: PatternId;
+		beatsPerMeasure: number;
+		stepsPerBeat: number;
 		layers: Step[][];
 	}
 
@@ -53,6 +55,8 @@
 		const stepsCount = clampedBeats * clampedSteps;
 		return {
 			id: patternId,
+			beatsPerMeasure: clampedBeats,
+			stepsPerBeat: clampedSteps,
 			layers: [createStepLayer(stepsCount), createStepLayer(stepsCount)]
 		};
 	}
@@ -78,7 +82,6 @@
 	let isPlaying = $state(false);
 	let currentStep = $state(0); // TODO: this should be local; need to store current sequence index as well (and give it to playStep())
 	let bpm = $state(120);
-	let beatsPerMeasure = $state(4);
 	let stepsPerBeat = $state(4);
 	let numMeasures = $state(1);
 	let key = $state('C');
@@ -102,10 +105,10 @@
 	let selectedPatternId = $derived(sequence[selectedSequenceIndex] ?? MIN_PATTERN_ID);
 
 	let displayedPatternId = $derived(
-		isPlaying
-			? (sequence[Math.floor(currentStep / stepsPerPattern())] ?? MIN_PATTERN_ID)
-			: selectedPatternId
+		isPlaying ? (getPatternAtStep(currentStep)?.patternId ?? selectedPatternId) : selectedPatternId
 	);
+
+	let displayedPattern = $derived(patterns.find((p) => p.id === displayedPatternId) ?? null);
 
 	function getCurrentLayer(): Step[] | null {
 		const pattern = patterns.find((p) => p.id === displayedPatternId);
@@ -145,7 +148,6 @@
 		];
 		selectedSynthIndex = 0;
 		bpm = 120;
-		beatsPerMeasure = 4;
 		stepsPerBeat = 4;
 		numMeasures = 1;
 	}
@@ -271,10 +273,36 @@
 		return Math.trunc(value);
 	}
 
-	function stepsPerPattern(): number {
-		const beats = clampBeatsPerMeasure(beatsPerMeasure);
-		const steps = clampStepsPerBeat(stepsPerBeat);
-		return beats * steps;
+	function stepsPerPattern(patternId: PatternId): number {
+		const pattern = patterns.find((p) => p.id === patternId);
+		if (!pattern) return 4 * 4;
+		return clampBeatsPerMeasure(pattern.beatsPerMeasure) * clampStepsPerBeat(pattern.stepsPerBeat);
+	}
+
+	function getStepForSequenceIndex(seqIndex: number): number {
+		let sum = 0;
+		for (let i = 0; i < seqIndex && i < sequence.length; i++) {
+			sum += stepsPerPattern(sequence[i]);
+		}
+		return sum;
+	}
+
+	function getPatternAtStep(
+		globalStep: number
+	): { patternIndex: number; stepInPattern: number; patternId: PatternId } | null {
+		let acc = 0;
+		for (let i = 0; i < sequence.length; i++) {
+			const patSteps = stepsPerPattern(sequence[i]);
+			if (globalStep < acc + patSteps) {
+				return {
+					patternIndex: i,
+					stepInPattern: globalStep - acc,
+					patternId: sequence[i]
+				};
+			}
+			acc += patSteps;
+		}
+		return null;
 	}
 
 	function getPatternColor(patternId: PatternId): string {
@@ -301,8 +329,7 @@
 	}
 
 	function totalSteps(): number {
-		const stepsPerPat = stepsPerPattern();
-		return sequence.length * stepsPerPat;
+		return sequence.reduce((sum, patternId) => sum + stepsPerPattern(patternId), 0);
 	}
 
 	function midiToFreq(midi: number) {
@@ -559,15 +586,10 @@
 		const ctx = ensureAudioContext();
 		const time = ctx.currentTime;
 		const stepDur = stepDurationSeconds();
-		const stepsPerPat = stepsPerPattern();
-		const sequenceIndex = Math.floor(step / stepsPerPat);
-		const stepInPattern = step % stepsPerPat;
+		const at = getPatternAtStep(step);
+		if (!at) return;
 
-		if (sequenceIndex >= sequence.length) {
-			return;
-		}
-
-		const patternId = sequence[sequenceIndex];
+		const { patternId, stepInPattern } = at;
 		const pattern = patterns.find((p) => p.id === patternId);
 		if (!pattern) {
 			return;
@@ -611,7 +633,7 @@
 			await ctx.resume();
 		}
 
-		currentStep = selectedSequenceIndex * stepsPerPattern();
+		currentStep = getStepForSequenceIndex(selectedSequenceIndex);
 		playStep(currentStep);
 		const durationMs = stepDurationSeconds() * 1000;
 		timeoutId = window.setTimeout(startPlayingStepsUsingTimeout, durationMs);
@@ -634,9 +656,14 @@
 	}
 
 	function clearPattern() {
+		const pattern = patterns.find((p) => p.id === displayedPatternId);
+		if (!pattern) return;
 		const patternIndex = patterns.findIndex((p) => p.id === displayedPatternId);
-		if (patternIndex < 0) return;
-		patterns[patternIndex] = createPattern(displayedPatternId, beatsPerMeasure, stepsPerBeat);
+		patterns[patternIndex] = createPattern(
+			displayedPatternId,
+			pattern.beatsPerMeasure,
+			pattern.stepsPerBeat
+		);
 	}
 
 	$effect(() => {
@@ -648,8 +675,8 @@
 	});
 
 	$effect(() => {
-		const stepsPerPat = stepsPerPattern();
 		for (const pattern of patterns) {
+			const stepsPerPat = stepsPerPattern(pattern.id);
 			for (const layer of pattern.layers) {
 				if (layer.length !== stepsPerPat) {
 					if (stepsPerPat > layer.length) {
@@ -775,30 +802,9 @@
 			</div>
 
 			<div class="flex items-center gap-2 text-sm">
-				<label for="beats" class="text-slate-300">Beats / bar</label>
+				<label for="gridSteps" class="text-slate-300">Grid steps/beat</label>
 				<input
-					id="beats"
-					type="number"
-					min={MIN_BEATS_PER_MEASURE}
-					max={MAX_BEATS_PER_MEASURE}
-					bind:value={beatsPerMeasure}
-					on:blur={() => {
-						beatsPerMeasure = clampBeatsPerMeasure(beatsPerMeasure);
-					}}
-					on:keydown={(event) => {
-						if (event.key === 'Enter') {
-							beatsPerMeasure = clampBeatsPerMeasure(beatsPerMeasure);
-						}
-					}}
-					class="w-20 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-right text-sm
-						focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
-				/>
-			</div>
-
-			<div class="flex items-center gap-2 text-sm">
-				<label for="steps" class="text-slate-300">Steps / beat</label>
-				<input
-					id="steps"
+					id="gridSteps"
 					type="number"
 					min={MIN_STEPS_PER_BEAT}
 					max={MAX_STEPS_PER_BEAT}
@@ -948,6 +954,52 @@
 				</label>
 			</div>
 
+			{#if displayedPattern}
+				<div class="flex items-center gap-2 text-sm">
+					<label for="beats" class="text-slate-300">Beats / bar</label>
+					<input
+						id="beats"
+						type="number"
+						min={MIN_BEATS_PER_MEASURE}
+						max={MAX_BEATS_PER_MEASURE}
+						bind:value={displayedPattern.beatsPerMeasure}
+						on:blur={() => {
+							displayedPattern.beatsPerMeasure = clampBeatsPerMeasure(
+								displayedPattern.beatsPerMeasure
+							);
+						}}
+						on:keydown={(event) => {
+							if (event.key === 'Enter') {
+								displayedPattern.beatsPerMeasure = clampBeatsPerMeasure(
+									displayedPattern.beatsPerMeasure
+								);
+							}
+						}}
+						class="w-20 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-right text-sm
+							focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
+					/>
+				</div>
+				<div class="flex items-center gap-2 text-sm">
+					<label for="steps" class="text-slate-300">Steps / beat</label>
+					<input
+						id="steps"
+						type="number"
+						min={MIN_STEPS_PER_BEAT}
+						max={MAX_STEPS_PER_BEAT}
+						bind:value={displayedPattern.stepsPerBeat}
+						on:blur={() => {
+							displayedPattern.stepsPerBeat = clampStepsPerBeat(displayedPattern.stepsPerBeat);
+						}}
+						on:keydown={(event) => {
+							if (event.key === 'Enter') {
+								displayedPattern.stepsPerBeat = clampStepsPerBeat(displayedPattern.stepsPerBeat);
+							}
+						}}
+						class="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-right text-sm
+							focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
+					/>
+				</div>
+			{/if}
 			<div class="flex items-center gap-2 text-xs text-slate-400">
 				<button
 					type="button"
@@ -976,14 +1028,12 @@
 						</div>
 						<div class="flex gap-0.5">
 							{#each getCurrentLayer() || [] as column, stepIndex (stepIndex)}
-								{@const stepsPerPat = stepsPerPattern()}
-								{@const currentPatternIndex = Math.floor(currentStep / stepsPerPat)}
-								{@const currentStepInPattern = currentStep % stepsPerPat}
+								{@const at = getPatternAtStep(currentStep)}
 								{@const isPlayingThisStep =
 									isPlaying &&
-									currentPatternIndex < sequence.length &&
-									sequence[currentPatternIndex] === displayedPatternId &&
-									currentStepInPattern === stepIndex}
+									at !== null &&
+									at.patternId === displayedPatternId &&
+									at.stepInPattern === stepIndex}
 								{@const isDisabled = !allowNonScaleNotes && !isInScale(pitchIndex)}
 								{@const hasNote = column.pitches[pitchIndex]}
 								{@const noteSelected = isNoteSelected(stepIndex, pitchIndex)}
@@ -1020,7 +1070,7 @@
 				<div class="flex items-center gap-1.5">
 					{#each sequence as patternId, seqIndex (seqIndex)}
 						{@const isPlayingThis =
-							isPlaying && Math.floor(currentStep / stepsPerPattern()) === seqIndex}
+							isPlaying && getPatternAtStep(currentStep)?.patternIndex === seqIndex}
 						{@const isSelected = selectedSequenceIndex === seqIndex}
 						<div
 							role="button"
