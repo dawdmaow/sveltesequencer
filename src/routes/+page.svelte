@@ -991,7 +991,8 @@
 								{@const hasNote = column.pitches[pitchIndex]}
 								{@const noteSelected = isNoteSelected(stepIndex, pitchIndex)}
 								{@const inSelectionRect = isInSelectionRect(stepIndex, pitchIndex)}
-								{@const isBeatStart = stepIndex % 4 === 0}
+								{@const isBeatStart =
+									displayedPattern && stepIndex % displayedPattern.stepsPerBeat === 0}
 								<button
 									type="button"
 									disabled={isDisabled}
