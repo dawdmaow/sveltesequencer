@@ -17,6 +17,8 @@
 	const MIN_PATTERN_ID = 0;
 	const MAX_PATTERNS = 8;
 
+	const activeNotes = new Map<string, { osc: OscillatorNode; gain: GainNode; releaseAt: number }>();
+
 	type SynthId = number;
 	type PatternId = number;
 
@@ -81,6 +83,7 @@
 	let key = $state('C');
 	let scale = $state<Scale>('Natural Minor');
 	let allowNonScaleNotes = $state(true);
+	let legatoSameNote = $state(false);
 	let synths = $state<Synth[]>([]);
 	let selectedSynthIndex = $state(0);
 	let isPainting = $state(false);
@@ -299,6 +302,26 @@
 
 	function playNote(midiNote: number, time: number, duration: number, synth: Synth) {
 		const ctx = ensureAudioContext();
+		const key = `${synth.id}-${midiNote}`;
+		if (legatoSameNote) {
+			const existing = activeNotes.get(key);
+			if (existing && ctx.currentTime < existing.releaseAt - 0.02) {
+				existing.gain.gain.cancelScheduledValues(time);
+				existing.gain.gain.setValueAtTime(existing.gain.gain.value, time);
+				const releaseSec = synth.releaseMs / 1000;
+				existing.gain.gain.linearRampToValueAtTime(synth.volume, time + 0.005);
+				existing.gain.gain.linearRampToValueAtTime(synth.volume, time + duration - releaseSec);
+				existing.gain.gain.linearRampToValueAtTime(0, time + duration);
+				existing.releaseAt = time + duration;
+				return;
+			}
+			if (existing) {
+				existing.osc.stop();
+				existing.gain.disconnect();
+				activeNotes.delete(key);
+				// TODO: if we never play the same synth-note combination, the key in activeNotes will stay forever (and oscillator will keep running)
+			}
+		}
 		const osc = ctx.createOscillator();
 		const gain = ctx.createGain();
 
@@ -317,7 +340,11 @@
 		gain.connect(ctx.destination);
 
 		osc.start(time);
-		osc.stop(time + duration + 0.05);
+		if (legatoSameNote) {
+			activeNotes.set(key, { osc, gain, releaseAt: time + duration });
+		} else {
+			osc.stop(time + duration + 0.05);
+		}
 	}
 
 	function setCell(step: number, pitchIndex: number, state: boolean) {
@@ -494,7 +521,8 @@
 	function playStep(step: number) {
 		const ctx = ensureAudioContext();
 		const time = ctx.currentTime;
-		const duration = stepDurationSeconds() * 0.9;
+		const stepDur = stepDurationSeconds();
+		const duration = legatoSameNote ? stepDur * 2 : stepDur * 0.9;
 		const stepsPerPat = stepsPerPattern();
 		const sequenceIndex = Math.floor(step / stepsPerPat);
 		const stepInPattern = step % stepsPerPat;
@@ -561,6 +589,11 @@
 			clearTimeout(timeoutId);
 			timeoutId = null;
 		}
+		for (const { osc, gain } of activeNotes.values()) {
+			osc.stop();
+			gain.disconnect();
+		}
+		activeNotes.clear();
 	}
 
 	function clearPattern() {
@@ -729,6 +762,13 @@
 					class="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-right text-sm
 						focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
 				/>
+			</div>
+
+			<div class="flex items-center gap-2 text-sm">
+				<label class="flex cursor-pointer items-center gap-2 text-slate-300">
+					<input type="checkbox" bind:checked={legatoSameNote} class="rounded" />
+					Legato same note
+				</label>
 			</div>
 
 			<div class="flex items-center gap-1">
