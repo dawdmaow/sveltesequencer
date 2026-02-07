@@ -1007,6 +1007,7 @@
 										${getCellClasses(pitchIndex, column.pitches[pitchIndex])}
 										${isBeatStart && !isPlayingThisStep ? 'border-l-2 border-l-slate-700' : ''}
 										${isPlayingThisStep ? 'border-l-2 border-l-amber-400/90' : ''}
+										${isPlayingThisStep && hasNote ? 'animate-note-pulse' : ''}
 										${isSelectingRect && inSelectionRect ? 'brightness-150' : ''}
 										${noteSelected ? 'brightness-125' : ''}
 										${isDisabled ? 'cursor-not-allowed opacity-40' : noteSelected ? 'cursor-grab' : 'cursor-pointer'}
