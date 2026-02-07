@@ -870,13 +870,10 @@
 	}}
 />
 
-<main class="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-10 text-slate-100">
-	<div class="w-full max-w-6xl space-y-6">
-		<header class="space-y-2 border-b border-slate-800/50 pb-4">
-			<h1 class="text-3xl font-semibold tracking-tight">MIDI Grid</h1>
-			<p class="text-sm text-slate-400">
-				Click cells to toggle notes, then press play to hear the loop.
-			</p>
+<main class="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-6 text-slate-100">
+	<div class="w-full max-w-6xl space-y-4">
+		<header>
+			<h1 class="text-2xl font-semibold tracking-tight">MIDI Grid</h1>
 		</header>
 
 		<details
@@ -954,21 +951,21 @@
 			</div>
 		</details>
 
-		<section class="flex flex-wrap items-center gap-6">
-			<div class="flex items-center gap-3">
+		<section class="space-y-2 rounded-lg border border-slate-800/60 bg-slate-900/40 px-4 py-3">
+			<div class="flex flex-wrap items-center gap-x-4 gap-y-2">
 				<button
 					type="button"
 					on:click={isPlaying ? stop : start}
-					class="inline-flex items-center gap-2 rounded-md px-5 py-2.5 text-sm font-medium shadow-md transition
+					class="rounded-md px-4 py-1.5 text-sm font-medium transition
 						{isPlaying
-						? 'bg-rose-500 text-white shadow-rose-500/30 hover:bg-rose-400'
-						: 'bg-emerald-500 text-white shadow-emerald-500/30 hover:bg-emerald-400'}"
+						? 'bg-rose-500 text-white hover:bg-rose-400'
+						: 'bg-emerald-500 text-white hover:bg-emerald-400'}"
 				>
-					<span>{isPlaying ? 'Stop' : 'Play'}</span>
+					{isPlaying ? 'Stop' : 'Play'}
 				</button>
 
-				<div class="flex items-center gap-2 text-sm">
-					<label for="bpm" class="font-medium text-slate-300">BPM</label>
+				<div class="flex items-center gap-1.5 text-sm">
+					<label for="bpm" class="text-slate-400">BPM</label>
 					<input
 						id="bpm"
 						type="number"
@@ -983,34 +980,13 @@
 								bpm = clampBpm(bpm);
 							}
 						}}
-						class="w-20 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-right text-sm
-							focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
+						class="w-16 rounded border border-slate-700 bg-slate-900 px-1.5 py-1 text-right text-sm
+							focus-visible:ring-1 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
 					/>
 				</div>
 
-				<div class="flex items-center gap-2 text-sm">
-					<label for="gridSteps" class="font-medium text-slate-300">Grid steps/beat</label>
-					<input
-						id="gridSteps"
-						type="number"
-						min={MIN_STEPS_PER_BEAT}
-						max={MAX_STEPS_PER_BEAT}
-						bind:value={stepsPerBeat}
-						on:blur={() => {
-							stepsPerBeat = clampStepsPerBeat(stepsPerBeat);
-						}}
-						on:keydown={(event) => {
-							if (event.key === 'Enter') {
-								stepsPerBeat = clampStepsPerBeat(stepsPerBeat);
-							}
-						}}
-						class="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-right text-sm
-							focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
-					/>
-				</div>
-			</div>
+				<span class="h-5 w-px bg-slate-800"></span>
 
-			<div class="flex flex-wrap items-center gap-3 border-l border-slate-800 pl-6">
 				<div class="flex items-center gap-1.5">
 					{#each synths as synth, idx (synth.id)}
 						<button
@@ -1019,23 +995,23 @@
 								selectedSynthIndex = idx;
 								selectedNotes = new Set();
 							}}
-							class="rounded-md px-4 py-2 text-sm font-medium transition
+							class="rounded px-3 py-1 text-sm font-medium transition
 								{selectedSynthIndex === idx
-								? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/30'
-								: 'bg-slate-800 text-slate-300 hover:bg-slate-700'}"
+								? 'bg-emerald-600 text-white'
+								: 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'}"
 						>
 							{synth.name}
 						</button>
 					{/each}
 				</div>
 
-				<div class="flex items-center gap-2 text-sm">
-					<label for="osc" class="font-medium text-slate-300">Osc</label>
+				<div class="flex items-center gap-1.5 text-sm">
+					<label for="osc" class="text-slate-400">Osc</label>
 					<select
 						id="osc"
 						bind:value={synths[selectedSynthIndex].oscType}
-						class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-sm
-							focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
+						class="rounded border border-slate-700 bg-slate-900 px-1.5 py-1 text-sm
+							focus-visible:ring-1 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
 					>
 						<option value="sine">sine</option>
 						<option value="square">square</option>
@@ -1044,8 +1020,8 @@
 					</select>
 				</div>
 
-				<div class="flex items-center gap-2 text-sm">
-					<label for="vol" class="font-medium text-slate-300">Vol</label>
+				<div class="flex items-center gap-1.5 text-sm">
+					<label for="vol" class="text-slate-400">Vol</label>
 					<input
 						id="vol"
 						type="range"
@@ -1053,15 +1029,15 @@
 						max="1"
 						step="0.01"
 						bind:value={synths[selectedSynthIndex].volume}
-						class="w-20 accent-emerald-500"
+						class="w-16 accent-emerald-500"
 					/>
-					<span class="w-10 text-right text-xs text-slate-400"
+					<span class="w-8 text-right text-xs text-slate-500"
 						>{Math.round(synths[selectedSynthIndex].volume * 100)}%</span
 					>
 				</div>
 
-				<div class="flex items-center gap-2 text-sm">
-					<label for="attack" class="font-medium text-slate-300">Attack</label>
+				<div class="flex items-center gap-1.5 text-sm">
+					<label for="attack" class="text-slate-400">Atk</label>
 					<input
 						id="attack"
 						type="range"
@@ -1069,15 +1045,15 @@
 						max="100"
 						step="1"
 						bind:value={synths[selectedSynthIndex].attackMs}
-						class="w-20 accent-emerald-500"
+						class="w-16 accent-emerald-500"
 					/>
-					<span class="min-w-10 shrink-0 text-right text-xs text-slate-400"
+					<span class="min-w-8 shrink-0 text-right text-xs text-slate-500"
 						>{synths[selectedSynthIndex].attackMs}ms</span
 					>
 				</div>
 
-				<div class="flex items-center gap-2 text-sm">
-					<label for="release" class="font-medium text-slate-300">Release</label>
+				<div class="flex items-center gap-1.5 text-sm">
+					<label for="release" class="text-slate-400">Rel</label>
 					<input
 						id="release"
 						type="range"
@@ -1085,14 +1061,14 @@
 						max="500"
 						step="1"
 						bind:value={synths[selectedSynthIndex].releaseMs}
-						class="w-20 accent-emerald-500"
+						class="w-16 accent-emerald-500"
 					/>
-					<span class="min-w-10 shrink-0 text-right text-xs text-slate-400"
+					<span class="min-w-8 shrink-0 text-right text-xs text-slate-500"
 						>{synths[selectedSynthIndex].releaseMs}ms</span
 					>
 				</div>
 
-				<label class="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-300">
+				<label class="flex cursor-pointer items-center gap-1.5 text-sm text-slate-400">
 					<input
 						type="checkbox"
 						bind:checked={synths[selectedSynthIndex].legatoSameNote}
@@ -1102,14 +1078,14 @@
 				</label>
 			</div>
 
-			<div class="flex flex-wrap items-center gap-3 border-l border-slate-800 pl-6">
-				<div class="flex items-center gap-2 text-sm">
-					<label for="key" class="font-medium text-slate-300">Key</label>
+			<div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+				<div class="flex items-center gap-1.5 text-sm">
+					<label for="key" class="text-slate-400">Key</label>
 					<select
 						id="key"
 						bind:value={key}
-						class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-sm
-							focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
+						class="rounded border border-slate-700 bg-slate-900 px-1.5 py-1 text-sm
+							focus-visible:ring-1 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
 					>
 						{#each keys as k (k)}
 							<option value={k}>{k}</option>
@@ -1117,13 +1093,13 @@
 					</select>
 				</div>
 
-				<div class="flex items-center gap-2 text-sm">
-					<label for="scale" class="font-medium text-slate-300">Scale</label>
+				<div class="flex items-center gap-1.5 text-sm">
+					<label for="scale" class="text-slate-400">Scale</label>
 					<select
 						id="scale"
 						bind:value={scale}
-						class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-sm
-							focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
+						class="rounded border border-slate-700 bg-slate-900 px-1.5 py-1 text-sm
+							focus-visible:ring-1 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
 					>
 						{#each Object.keys(scales) as s (s)}
 							<option value={s}>{s}</option>
@@ -1131,92 +1107,91 @@
 					</select>
 				</div>
 
-				<label class="flex cursor-pointer items-center gap-2 text-sm">
+				<label class="flex cursor-pointer items-center gap-1.5 text-sm text-slate-400">
 					<input
 						type="checkbox"
 						bind:checked={allowNonScaleNotes}
 						class="rounded accent-emerald-500"
 					/>
-					<span class="font-medium text-slate-300">Allow non-scale notes</span>
+					Non-scale notes
 				</label>
-			</div>
-		</section>
 
-		{#if displayedPattern}
-			<section
-				class="flex flex-wrap items-center gap-3 rounded-lg border border-slate-800/50 bg-slate-900/40 px-4 py-3"
-			>
-				<div class="flex items-center gap-2 text-sm">
-					<label for="beats" class="font-medium text-slate-300">Beats / bar</label>
-					<input
-						id="beats"
-						type="number"
-						min={MIN_BEATS_PER_MEASURE}
-						max={MAX_BEATS_PER_MEASURE}
-						bind:value={displayedPattern.beatsPerMeasure}
-						on:blur={() => {
-							displayedPattern.beatsPerMeasure = clampBeatsPerMeasure(
-								displayedPattern.beatsPerMeasure
-							);
-						}}
-						on:keydown={(event) => {
-							if (event.key === 'Enter') {
+				{#if displayedPattern}
+					<span class="h-5 w-px bg-slate-800"></span>
+
+					<div class="flex items-center gap-1.5 text-sm">
+						<label for="beats" class="text-slate-400">Beats/bar</label>
+						<input
+							id="beats"
+							type="number"
+							min={MIN_BEATS_PER_MEASURE}
+							max={MAX_BEATS_PER_MEASURE}
+							bind:value={displayedPattern.beatsPerMeasure}
+							on:blur={() => {
 								displayedPattern.beatsPerMeasure = clampBeatsPerMeasure(
 									displayedPattern.beatsPerMeasure
 								);
-							}
-						}}
-						class="w-20 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-right text-sm
-							focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
-					/>
-				</div>
-				<div class="flex items-center gap-2 text-sm">
-					<label for="steps" class="font-medium text-slate-300">Steps / beat</label>
-					<input
-						id="steps"
-						type="number"
-						min={MIN_STEPS_PER_BEAT}
-						max={MAX_STEPS_PER_BEAT}
-						bind:value={displayedPattern.stepsPerBeat}
-						on:blur={() => {
-							displayedPattern.stepsPerBeat = clampStepsPerBeat(displayedPattern.stepsPerBeat);
-						}}
-						on:keydown={(event) => {
-							if (event.key === 'Enter') {
-								displayedPattern.stepsPerBeat = clampStepsPerBeat(displayedPattern.stepsPerBeat);
-							}
-						}}
-						class="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-right text-sm
-							focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
-					/>
-				</div>
+							}}
+							on:keydown={(event) => {
+								if (event.key === 'Enter') {
+									displayedPattern.beatsPerMeasure = clampBeatsPerMeasure(
+										displayedPattern.beatsPerMeasure
+									);
+								}
+							}}
+							class="w-14 rounded border border-slate-700 bg-slate-900 px-1.5 py-1 text-right text-sm
+								focus-visible:ring-1 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
+						/>
+					</div>
 
-				<button
-					type="button"
-					on:click={clearPattern}
-					class="ml-auto rounded-md border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-slate-200"
-				>
-					Clear
-				</button>
-			</section>
-		{/if}
+					<div class="flex items-center gap-1.5 text-sm">
+						<label for="steps" class="text-slate-400">Steps/beat</label>
+						<input
+							id="steps"
+							type="number"
+							min={MIN_STEPS_PER_BEAT}
+							max={MAX_STEPS_PER_BEAT}
+							bind:value={displayedPattern.stepsPerBeat}
+							on:blur={() => {
+								displayedPattern.stepsPerBeat = clampStepsPerBeat(displayedPattern.stepsPerBeat);
+							}}
+							on:keydown={(event) => {
+								if (event.key === 'Enter') {
+									displayedPattern.stepsPerBeat = clampStepsPerBeat(displayedPattern.stepsPerBeat);
+								}
+							}}
+							class="w-14 rounded border border-slate-700 bg-slate-900 px-1.5 py-1 text-right text-sm
+								focus-visible:ring-1 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
+						/>
+					</div>
+
+					<button
+						type="button"
+						on:click={clearPattern}
+						class="rounded border border-slate-700 px-2.5 py-1 text-sm text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+					>
+						Clear
+					</button>
+				{/if}
+			</div>
+		</section>
 
 		<section
-			class="flex gap-2 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/60 p-4 shadow-xl shadow-black/40 {isPainting
+			class="flex gap-1 overflow-hidden rounded-lg border border-slate-800/60 bg-slate-900/40 p-3 {isPainting
 				? 'cursor-crosshair'
 				: ''}"
 		>
-			<div class="flex max-h-[500px] flex-col gap-0.5 overflow-y-auto pt-6 pb-6">
+			<div class="flex max-h-[60vh] flex-col gap-px overflow-y-auto pt-6 pb-6">
 				{#each [...Array(NUM_PITCHES).keys()] as pitchIndex (pitchIndex)}
-					<div class="flex gap-2">
+					<div class="flex gap-1">
 						<div
-							class="flex w-16 flex-shrink-0 items-center justify-end pr-2 text-xs font-medium {getNoteLabelClasses(
+							class="flex w-12 flex-shrink-0 items-center justify-end pr-1.5 text-[10px] font-medium {getNoteLabelClasses(
 								pitchIndex
 							)}"
 						>
 							<span>{getNoteName(pitchIndex)}</span>
 						</div>
-						<div class="flex gap-0.5">
+						<div class="flex gap-px">
 							{#each getCurrentLayer() || [] as column, stepIndex (stepIndex)}
 								{@const at = getPatternAtStep(currentStep)}
 								{@const isPlayingThisStep =
@@ -1239,10 +1214,10 @@
 											isDisabled
 										})}
 									on:mouseenter={() => handleCellMouseenter(stepIndex, pitchIndex, isDisabled)}
-									class={`h-8 w-8 flex-shrink-0 rounded-sm border text-xs transition
+									class={`h-[22px] w-[36px] flex-shrink-0 rounded-sm border text-xs transition
 										${getCellClasses(pitchIndex, column.pitches[pitchIndex])}
 										${isBeatStart ? 'border-l-2 border-l-slate-700' : ''}
-										${isPlayingThisStep ? 'ring-2 ring-emerald-400 ring-offset-2 ring-offset-slate-900' : ''}
+										${isPlayingThisStep ? 'ring-1 ring-emerald-400/80' : ''}
 										${isSelectingRect && inSelectionRect ? 'brightness-150' : ''}
 										${noteSelected ? 'brightness-125' : ''}
 										${isDisabled ? 'cursor-not-allowed opacity-40' : noteSelected ? 'cursor-grab' : 'cursor-pointer'}
@@ -1256,9 +1231,9 @@
 			</div>
 		</section>
 
-		<section class="rounded-lg border border-slate-800/50 bg-slate-900/40 px-4 py-3">
+		<section class="px-1 py-2">
 			<div class="flex items-center gap-3 text-sm">
-				<span class="font-medium text-slate-300">Sequence</span>
+				<span class="text-xs font-medium tracking-wide text-slate-500 uppercase">Sequence</span>
 				<div class="flex items-center gap-2">
 					{#each sequence as patternId, seqIndex (seqIndex)}
 						{@const isPlayingThis =
@@ -1289,10 +1264,10 @@
 									else if (e.key === 'ArrowRight') movePatternInSequence(seqIndex, 1);
 								}
 							}}
-							class={`flex min-w-12 cursor-pointer flex-col items-center rounded-md px-2 py-1.5 transition
+							class={`flex min-w-10 cursor-pointer flex-col items-center rounded px-1.5 py-1 transition
 								${getPatternColor(patternId)}
-								${isSelected ? 'shadow-lg ring-2 ring-emerald-400 ring-offset-2 ring-offset-slate-900' : 'hover:brightness-110'}
-								${isPlayingThis ? 'shadow-lg shadow-emerald-400/50' : ''}
+								${isSelected ? 'ring-1 ring-emerald-400/80' : 'hover:brightness-110'}
+								${isPlayingThis ? 'brightness-125' : ''}
 							`}
 						>
 							<button
@@ -1326,7 +1301,7 @@
 							on:click={() => {
 								sequence.push(selectedPatternId);
 							}}
-							class="rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm font-medium hover:bg-slate-800 hover:text-slate-200"
+							class="rounded border border-slate-700/50 px-2 py-1 text-sm text-slate-500 hover:bg-slate-800 hover:text-slate-300"
 							title="Add to sequence"
 						>
 							+
@@ -1344,7 +1319,7 @@
 									}
 								}
 							}}
-							class="rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm font-medium hover:bg-slate-800 hover:text-slate-200"
+							class="rounded border border-slate-700/50 px-2 py-1 text-sm text-slate-500 hover:bg-slate-800 hover:text-slate-300"
 							title="Remove last"
 						>
 							−
