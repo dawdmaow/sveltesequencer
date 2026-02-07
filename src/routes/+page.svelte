@@ -871,76 +871,80 @@
 />
 
 <main class="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-10 text-slate-100">
-	<div class="w-full max-w-5xl space-y-6">
-		<header class="space-y-1">
+	<div class="w-full max-w-6xl space-y-6">
+		<header class="space-y-2 border-b border-slate-800/50 pb-4">
 			<h1 class="text-3xl font-semibold tracking-tight">MIDI Grid</h1>
 			<p class="text-sm text-slate-400">
 				Click cells to toggle notes, then press play to hear the loop.
 			</p>
 		</header>
 
-		<details class="rounded-lg border border-slate-800 bg-slate-900/60 text-sm text-slate-400">
-			<summary class="cursor-pointer px-4 py-2 font-medium text-slate-300">Instructions</summary>
+		<details
+			class="rounded-lg border border-slate-800 bg-slate-900/60 text-sm text-slate-400 open:shadow-lg open:shadow-black/20"
+		>
+			<summary class="cursor-pointer px-4 py-2 font-medium text-slate-300 hover:bg-slate-800/50"
+				>Instructions</summary
+			>
 			<div class="px-4 py-3">
 				<table class="w-full min-w-[20rem] text-left text-slate-400">
 					<tbody>
-						<tr><td class="font-medium text-slate-300">Piano roll</td><td></td></tr>
-						<tr
+						<tr><td class="py-1.5 font-medium text-slate-300">Piano roll</td><td></td></tr>
+						<tr class="hover:bg-slate-800/30"
 							><td class="py-1 pr-4 align-top"><span class="act">click</span></td><td class="py-1"
 								>toggle</td
 							></tr
 						>
-						<tr
+						<tr class="hover:bg-slate-800/30"
 							><td class="py-1 pr-4 align-top"
 								><kbd class="kbd">Cmd</kbd>/<kbd class="kbd">Ctrl</kbd> +
 								<span class="act">drag</span></td
 							><td class="py-1">select rect</td></tr
 						>
-						<tr
+						<tr class="hover:bg-slate-800/30"
 							><td class="py-1 pr-4 align-top"
 								><kbd class="kbd">Shift</kbd> + <span class="act">click</span></td
 							><td class="py-1">add/remove from selection</td></tr
 						>
-						<tr
+						<tr class="hover:bg-slate-800/30"
 							><td class="py-1 pr-4 align-top"><span class="act">drag</span></td><td class="py-1"
 								>move</td
 							></tr
 						>
-						<tr
+						<tr class="hover:bg-slate-800/30"
 							><td class="py-1 pr-4 align-top"
 								><kbd class="kbd">Option</kbd>/<kbd class="kbd">Alt</kbd> +
 								<span class="act">drag</span></td
 							><td class="py-1">clone</td></tr
 						>
-						<tr><td class="font-medium text-slate-300">Notes</td><td></td></tr>
-						<tr
+						<tr><td class="py-1.5 font-medium text-slate-300">Notes</td><td></td></tr>
+						<tr class="hover:bg-slate-800/30"
 							><td class="py-1 pr-4 align-top"><kbd class="kbd">Arrows</kbd></td><td class="py-1"
 								>move selection</td
 							></tr
 						>
-						<tr
+						<tr class="hover:bg-slate-800/30"
 							><td class="py-1 pr-4 align-top"><kbd class="kbd">Delete</kbd></td><td class="py-1"
 								>remove selection</td
 							></tr
 						>
-						<tr
+						<tr class="hover:bg-slate-800/30"
 							><td class="py-1 pr-4 align-top"><kbd class="kbd">Escape</kbd></td><td class="py-1"
 								>deselect</td
 							></tr
 						>
-						<tr><td class="font-medium text-slate-300">Sequence cells</td><td></td></tr>
-						<tr
+						<tr><td class="py-1.5 font-medium text-slate-300">Sequence cells</td><td></td></tr>
+						<tr class="hover:bg-slate-800/30"
 							><td class="py-1 pr-4 align-top"
 								><kbd class="kbd">Arrows</kbd> <span class="opt">up/down</span></td
 							><td class="py-1">cycle pattern</td></tr
 						>
-						<tr
+						<tr class="hover:bg-slate-800/30"
 							><td class="py-1 pr-4 align-top"
 								><kbd class="kbd">Arrows</kbd> <span class="opt">left/right</span></td
 							><td class="py-1">reorder</td></tr
 						>
-						<tr><td class="font-medium text-slate-300">Transport</td><td></td></tr>
-						<tr
+						<tr><td class="py-1.5 font-medium text-slate-300">Transport</td><td></td></tr>
+						<tr class="hover:bg-slate-800/30"
 							><td class="py-1 pr-4 align-top"><kbd class="kbd">Space</kbd></td><td class="py-1"
 								><span class="opt">play/stop</span></td
 							></tr
@@ -950,195 +954,200 @@
 			</div>
 		</details>
 
-		<section class="flex flex-wrap items-center gap-4">
-			<button
-				type="button"
-				on:click={isPlaying ? stop : start}
-				class="inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium
-					{isPlaying
-					? 'bg-rose-500 text-white hover:bg-rose-400'
-					: 'bg-emerald-500 text-white hover:bg-emerald-400'}"
-			>
-				<span>{isPlaying ? 'Stop' : 'Play'}</span>
-			</button>
+		<section class="flex flex-wrap items-center gap-6">
+			<div class="flex items-center gap-3">
+				<button
+					type="button"
+					on:click={isPlaying ? stop : start}
+					class="inline-flex items-center gap-2 rounded-md px-5 py-2.5 text-sm font-medium shadow-md transition
+						{isPlaying
+						? 'bg-rose-500 text-white shadow-rose-500/30 hover:bg-rose-400'
+						: 'bg-emerald-500 text-white shadow-emerald-500/30 hover:bg-emerald-400'}"
+				>
+					<span>{isPlaying ? 'Stop' : 'Play'}</span>
+				</button>
 
-			<div class="flex items-center gap-2 text-sm">
-				<label for="bpm" class="text-slate-300">BPM</label>
-				<input
-					id="bpm"
-					type="number"
-					min={MIN_BPM}
-					max={MAX_BPM}
-					bind:value={bpm}
-					on:blur={() => {
-						bpm = clampBpm(bpm);
-					}}
-					on:keydown={(event) => {
-						if (event.key === 'Enter') {
+				<div class="flex items-center gap-2 text-sm">
+					<label for="bpm" class="font-medium text-slate-300">BPM</label>
+					<input
+						id="bpm"
+						type="number"
+						min={MIN_BPM}
+						max={MAX_BPM}
+						bind:value={bpm}
+						on:blur={() => {
 							bpm = clampBpm(bpm);
-						}
-					}}
-					class="w-20 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-right text-sm
-						focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
-				/>
-			</div>
-
-			<div class="flex items-center gap-2 text-sm">
-				<label for="gridSteps" class="text-slate-300">Grid steps/beat</label>
-				<input
-					id="gridSteps"
-					type="number"
-					min={MIN_STEPS_PER_BEAT}
-					max={MAX_STEPS_PER_BEAT}
-					bind:value={stepsPerBeat}
-					on:blur={() => {
-						stepsPerBeat = clampStepsPerBeat(stepsPerBeat);
-					}}
-					on:keydown={(event) => {
-						if (event.key === 'Enter') {
-							stepsPerBeat = clampStepsPerBeat(stepsPerBeat);
-						}
-					}}
-					class="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-right text-sm
-						focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
-				/>
-			</div>
-
-			<div class="flex items-center gap-1">
-				{#each synths as synth, idx (synth.id)}
-					<button
-						type="button"
-						on:click={() => {
-							selectedSynthIndex = idx;
-							selectedNotes = new Set();
 						}}
-						class="rounded-md px-3 py-1.5 text-sm transition
-							{selectedSynthIndex === idx
-							? 'bg-emerald-600 text-white'
-							: 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-300'}"
+						on:keydown={(event) => {
+							if (event.key === 'Enter') {
+								bpm = clampBpm(bpm);
+							}
+						}}
+						class="w-20 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-right text-sm
+							focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
+					/>
+				</div>
+
+				<div class="flex items-center gap-2 text-sm">
+					<label for="gridSteps" class="font-medium text-slate-300">Grid steps/beat</label>
+					<input
+						id="gridSteps"
+						type="number"
+						min={MIN_STEPS_PER_BEAT}
+						max={MAX_STEPS_PER_BEAT}
+						bind:value={stepsPerBeat}
+						on:blur={() => {
+							stepsPerBeat = clampStepsPerBeat(stepsPerBeat);
+						}}
+						on:keydown={(event) => {
+							if (event.key === 'Enter') {
+								stepsPerBeat = clampStepsPerBeat(stepsPerBeat);
+							}
+						}}
+						class="w-24 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-right text-sm
+							focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
+					/>
+				</div>
+			</div>
+
+			<div class="flex flex-wrap items-center gap-3 border-l border-slate-800 pl-6">
+				<div class="flex items-center gap-1.5">
+					{#each synths as synth, idx (synth.id)}
+						<button
+							type="button"
+							on:click={() => {
+								selectedSynthIndex = idx;
+								selectedNotes = new Set();
+							}}
+							class="rounded-md px-4 py-2 text-sm font-medium transition
+								{selectedSynthIndex === idx
+								? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/30'
+								: 'bg-slate-800 text-slate-300 hover:bg-slate-700'}"
+						>
+							{synth.name}
+						</button>
+					{/each}
+				</div>
+
+				<div class="flex items-center gap-2 text-sm">
+					<label for="osc" class="font-medium text-slate-300">Osc</label>
+					<select
+						id="osc"
+						bind:value={synths[selectedSynthIndex].oscType}
+						class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-sm
+							focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
 					>
-						{synth.name}
-					</button>
-				{/each}
-			</div>
+						<option value="sine">sine</option>
+						<option value="square">square</option>
+						<option value="sawtooth">sawtooth</option>
+						<option value="triangle">triangle</option>
+					</select>
+				</div>
 
-			<div class="flex items-center gap-2 text-xs text-slate-400">
-				<label for="osc" class="text-slate-300">Osc</label>
-				<select
-					id="osc"
-					bind:value={synths[selectedSynthIndex].oscType}
-					class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-sm
-						focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
-				>
-					<option value="sine">sine</option>
-					<option value="square">square</option>
-					<option value="sawtooth">sawtooth</option>
-					<option value="triangle">triangle</option>
-				</select>
-			</div>
+				<div class="flex items-center gap-2 text-sm">
+					<label for="vol" class="font-medium text-slate-300">Vol</label>
+					<input
+						id="vol"
+						type="range"
+						min="0"
+						max="1"
+						step="0.01"
+						bind:value={synths[selectedSynthIndex].volume}
+						class="w-20 accent-emerald-500"
+					/>
+					<span class="w-10 text-right text-xs text-slate-400"
+						>{Math.round(synths[selectedSynthIndex].volume * 100)}%</span
+					>
+				</div>
 
-			<div class="flex items-center gap-2 text-sm">
-				<label for="vol" class="text-slate-300">Vol</label>
-				<input
-					id="vol"
-					type="range"
-					min="0"
-					max="1"
-					step="0.01"
-					bind:value={synths[selectedSynthIndex].volume}
-					class="w-20 accent-emerald-500"
-				/>
-				<span class="w-8 text-right text-slate-400"
-					>{Math.round(synths[selectedSynthIndex].volume * 100)}%</span
-				>
-			</div>
+				<div class="flex items-center gap-2 text-sm">
+					<label for="attack" class="font-medium text-slate-300">Attack</label>
+					<input
+						id="attack"
+						type="range"
+						min="1"
+						max="100"
+						step="1"
+						bind:value={synths[selectedSynthIndex].attackMs}
+						class="w-20 accent-emerald-500"
+					/>
+					<span class="min-w-10 shrink-0 text-right text-xs text-slate-400"
+						>{synths[selectedSynthIndex].attackMs}ms</span
+					>
+				</div>
 
-			<div class="flex items-center gap-2 text-sm">
-				<label for="attack" class="text-slate-300">Attack (ms)</label>
-				<input
-					id="attack"
-					type="range"
-					min="1"
-					max="100"
-					step="1"
-					bind:value={synths[selectedSynthIndex].attackMs}
-					class="w-20 accent-emerald-500"
-				/>
-				<span class="min-w-12 shrink-0 text-right whitespace-nowrap text-slate-400"
-					>{synths[selectedSynthIndex].attackMs} ms</span
-				>
-			</div>
+				<div class="flex items-center gap-2 text-sm">
+					<label for="release" class="font-medium text-slate-300">Release</label>
+					<input
+						id="release"
+						type="range"
+						min="1"
+						max="500"
+						step="1"
+						bind:value={synths[selectedSynthIndex].releaseMs}
+						class="w-20 accent-emerald-500"
+					/>
+					<span class="min-w-10 shrink-0 text-right text-xs text-slate-400"
+						>{synths[selectedSynthIndex].releaseMs}ms</span
+					>
+				</div>
 
-			<div class="flex items-center gap-2 text-sm">
-				<label for="release" class="text-slate-300">Release (ms)</label>
-				<input
-					id="release"
-					type="range"
-					min="1"
-					max="500"
-					step="1"
-					bind:value={synths[selectedSynthIndex].releaseMs}
-					class="w-20 accent-emerald-500"
-				/>
-				<span class="min-w-12 shrink-0 text-right whitespace-nowrap text-slate-400"
-					>{synths[selectedSynthIndex].releaseMs} ms</span
-				>
-			</div>
-
-			<div class="flex items-center gap-2 text-sm">
-				<label class="flex cursor-pointer items-center gap-2 text-slate-300">
+				<label class="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-300">
 					<input
 						type="checkbox"
 						bind:checked={synths[selectedSynthIndex].legatoSameNote}
-						class="rounded"
+						class="rounded accent-emerald-500"
 					/>
 					Legato
 				</label>
 			</div>
 
-			<div class="flex items-center gap-2 text-xs text-slate-400">
-				<label for="key" class="text-slate-300">Key</label>
-				<select
-					id="key"
-					bind:value={key}
-					class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-sm
-						focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
-				>
-					{#each keys as k (k)}
-						<option value={k}>{k}</option>
-					{/each}
-				</select>
-			</div>
+			<div class="flex flex-wrap items-center gap-3 border-l border-slate-800 pl-6">
+				<div class="flex items-center gap-2 text-sm">
+					<label for="key" class="font-medium text-slate-300">Key</label>
+					<select
+						id="key"
+						bind:value={key}
+						class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-sm
+							focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
+					>
+						{#each keys as k (k)}
+							<option value={k}>{k}</option>
+						{/each}
+					</select>
+				</div>
 
-			<div class="flex items-center gap-2 text-xs text-slate-400">
-				<label for="scale" class="text-slate-300">Scale</label>
-				<select
-					id="scale"
-					bind:value={scale}
-					class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-sm
-						focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
-				>
-					{#each Object.keys(scales) as s (s)}
-						<option value={s}>{s}</option>
-					{/each}
-				</select>
-			</div>
+				<div class="flex items-center gap-2 text-sm">
+					<label for="scale" class="font-medium text-slate-300">Scale</label>
+					<select
+						id="scale"
+						bind:value={scale}
+						class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-sm
+							focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
+					>
+						{#each Object.keys(scales) as s (s)}
+							<option value={s}>{s}</option>
+						{/each}
+					</select>
+				</div>
 
-			<div class="flex items-center gap-2 text-xs text-slate-400">
-				<label class="flex cursor-pointer items-center gap-2">
+				<label class="flex cursor-pointer items-center gap-2 text-sm">
 					<input
 						type="checkbox"
 						bind:checked={allowNonScaleNotes}
-						class="rounded border-slate-700 bg-slate-900 text-emerald-500
-							focus:ring-2 focus:ring-emerald-500/70 focus:ring-offset-0"
+						class="rounded accent-emerald-500"
 					/>
-					<span class="text-slate-300">Allow non-scale notes</span>
+					<span class="font-medium text-slate-300">Allow non-scale notes</span>
 				</label>
 			</div>
+		</section>
 
-			{#if displayedPattern}
+		{#if displayedPattern}
+			<section
+				class="flex flex-wrap items-center gap-3 rounded-lg border border-slate-800/50 bg-slate-900/40 px-4 py-3"
+			>
 				<div class="flex items-center gap-2 text-sm">
-					<label for="beats" class="text-slate-300">Beats / bar</label>
+					<label for="beats" class="font-medium text-slate-300">Beats / bar</label>
 					<input
 						id="beats"
 						type="number"
@@ -1162,7 +1171,7 @@
 					/>
 				</div>
 				<div class="flex items-center gap-2 text-sm">
-					<label for="steps" class="text-slate-300">Steps / beat</label>
+					<label for="steps" class="font-medium text-slate-300">Steps / beat</label>
 					<input
 						id="steps"
 						type="number"
@@ -1181,28 +1190,27 @@
 							focus-visible:ring-2 focus-visible:ring-emerald-500/70 focus-visible:outline-none"
 					/>
 				</div>
-			{/if}
-			<div class="flex items-center gap-2 text-xs text-slate-400">
+
 				<button
 					type="button"
 					on:click={clearPattern}
-					class="rounded-md border border-slate-700 px-2 py-1 hover:bg-slate-800"
+					class="ml-auto rounded-md border border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-slate-200"
 				>
 					Clear
 				</button>
-			</div>
-		</section>
+			</section>
+		{/if}
 
 		<section
-			class="flex gap-2 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/60 p-3 shadow-lg shadow-black/40 {isPainting
+			class="flex gap-2 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/60 p-4 shadow-xl shadow-black/40 {isPainting
 				? 'cursor-crosshair'
 				: ''}"
 		>
-			<div class="flex max-h-[600px] flex-col gap-0.5 overflow-y-auto pt-6 pb-6">
+			<div class="flex max-h-[500px] flex-col gap-0.5 overflow-y-auto pt-6 pb-6">
 				{#each [...Array(NUM_PITCHES).keys()] as pitchIndex (pitchIndex)}
 					<div class="flex gap-2">
 						<div
-							class="flex w-16 flex-shrink-0 items-center justify-end pr-2 text-xs {getNoteLabelClasses(
+							class="flex w-16 flex-shrink-0 items-center justify-end pr-2 text-xs font-medium {getNoteLabelClasses(
 								pitchIndex
 							)}"
 						>
@@ -1220,6 +1228,7 @@
 								{@const hasNote = column.pitches[pitchIndex]}
 								{@const noteSelected = isNoteSelected(stepIndex, pitchIndex)}
 								{@const inSelectionRect = isInSelectionRect(stepIndex, pitchIndex)}
+								{@const isBeatStart = stepIndex % 4 === 0}
 								<button
 									type="button"
 									disabled={isDisabled}
@@ -1232,7 +1241,8 @@
 									on:mouseenter={() => handleCellMouseenter(stepIndex, pitchIndex, isDisabled)}
 									class={`h-8 w-8 flex-shrink-0 rounded-sm border text-xs transition
 										${getCellClasses(pitchIndex, column.pitches[pitchIndex])}
-										${isPlayingThisStep ? 'ring-2 ring-emerald-400/80 ring-offset-2 ring-offset-slate-900' : ''}
+										${isBeatStart ? 'border-l-2 border-l-slate-700' : ''}
+										${isPlayingThisStep ? 'ring-2 ring-emerald-400 ring-offset-2 ring-offset-slate-900' : ''}
 										${isSelectingRect && inSelectionRect ? 'brightness-150' : ''}
 										${noteSelected ? 'brightness-125' : ''}
 										${isDisabled ? 'cursor-not-allowed opacity-40' : noteSelected ? 'cursor-grab' : 'cursor-pointer'}
@@ -1246,10 +1256,10 @@
 			</div>
 		</section>
 
-		<section class="flex flex-wrap items-center gap-4">
-			<div class="flex items-center gap-2 text-xs text-slate-400">
-				<span class="text-slate-300">Sequence</span>
-				<div class="flex items-center gap-1.5">
+		<section class="rounded-lg border border-slate-800/50 bg-slate-900/40 px-4 py-3">
+			<div class="flex items-center gap-3 text-sm">
+				<span class="font-medium text-slate-300">Sequence</span>
+				<div class="flex items-center gap-2">
 					{#each sequence as patternId, seqIndex (seqIndex)}
 						{@const isPlayingThis =
 							isPlaying && getPatternAtStep(currentStep)?.patternIndex === seqIndex}
@@ -1279,10 +1289,10 @@
 									else if (e.key === 'ArrowRight') movePatternInSequence(seqIndex, 1);
 								}
 							}}
-							class={`flex min-w-[2.5rem] cursor-pointer flex-col items-center rounded-md px-2 py-1 transition
+							class={`flex min-w-12 cursor-pointer flex-col items-center rounded-md px-2 py-1.5 transition
 								${getPatternColor(patternId)}
-								${isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900' : ''}
-								${isPlayingThis ? 'shadow-lg shadow-emerald-500/50' : ''}
+								${isSelected ? 'shadow-lg ring-2 ring-emerald-400 ring-offset-2 ring-offset-slate-900' : 'hover:brightness-110'}
+								${isPlayingThis ? 'shadow-lg shadow-emerald-400/50' : ''}
 							`}
 						>
 							<button
@@ -1316,7 +1326,7 @@
 							on:click={() => {
 								sequence.push(selectedPatternId);
 							}}
-							class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs hover:bg-slate-800"
+							class="rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm font-medium hover:bg-slate-800 hover:text-slate-200"
 							title="Add to sequence"
 						>
 							+
@@ -1334,7 +1344,7 @@
 									}
 								}
 							}}
-							class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs hover:bg-slate-800"
+							class="rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm font-medium hover:bg-slate-800 hover:text-slate-200"
 							title="Remove last"
 						>
 							−
