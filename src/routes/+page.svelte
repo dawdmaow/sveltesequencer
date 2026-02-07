@@ -1003,10 +1003,10 @@
 											isDisabled
 										})}
 									on:mouseenter={() => handleCellMouseenter(stepIndex, pitchIndex, isDisabled)}
-									class={`h-[22px] w-[36px] flex-shrink-0 rounded-sm border text-xs transition
+									class={`h-[22px] w-[36px] flex-shrink-0 rounded-sm border text-xs transition-[background-color,filter]
 										${getCellClasses(pitchIndex, column.pitches[pitchIndex])}
-										${isBeatStart ? 'border-l-2 border-l-slate-700' : ''}
-										${isPlayingThisStep ? 'ring-1 ring-emerald-400/80' : ''}
+										${isBeatStart && !isPlayingThisStep ? 'border-l-2 border-l-slate-700' : ''}
+										${isPlayingThisStep ? 'border-l-2 border-l-amber-400/90' : ''}
 										${isSelectingRect && inSelectionRect ? 'brightness-150' : ''}
 										${noteSelected ? 'brightness-125' : ''}
 										${isDisabled ? 'cursor-not-allowed opacity-40' : noteSelected ? 'cursor-grab' : 'cursor-pointer'}
