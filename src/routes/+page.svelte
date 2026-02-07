@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
+	import { replaceState } from '$app/navigation';
+	import LZString from 'lz-string';
 
 	const MAX_STEPS = 32;
 	const NUM_OCTAVES = 6;
@@ -151,12 +153,84 @@
 		stepsPerBeat = 4;
 		numMeasures = 1;
 	}
-	reset();
+	const keys = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+	interface Persisted {
+		version: 1;
+		patterns: Pattern[];
+		sequence: number[];
+		bpm: number;
+		stepsPerBeat: number;
+		numMeasures: number;
+		key: string;
+		scale: string;
+		allowNonScaleNotes: boolean;
+		synths: Synth[];
+		selectedSequenceIndex?: number;
+		selectedSynthIndex?: number;
+	}
+
+	function serializeState(): string {
+		const data: Persisted = {
+			version: 1,
+			patterns,
+			sequence,
+			bpm,
+			stepsPerBeat,
+			numMeasures,
+			key,
+			scale,
+			allowNonScaleNotes,
+			synths,
+			selectedSequenceIndex,
+			selectedSynthIndex
+		};
+		return JSON.stringify(data);
+	}
+
+	function deserializeState(str: string): Persisted {
+		const d = JSON.parse(str) as Persisted;
+		if (typeof d !== 'object' || d === null) throw new Error('Invalid state: not an object');
+		if (d.version !== 1) throw new Error('Invalid state: unsupported version');
+		return d;
+	}
+
+	function applyState(data: Persisted) {
+		patterns = data.patterns;
+		sequence = data.sequence;
+		selectedSequenceIndex = data.selectedSequenceIndex ?? 0;
+		selectedNotes = new Set();
+		key = data.key;
+		scale = data.scale as Scale;
+		allowNonScaleNotes = data.allowNonScaleNotes;
+		synths = data.synths;
+		selectedSynthIndex = data.selectedSynthIndex ?? 0;
+		bpm = data.bpm;
+		stepsPerBeat = data.stepsPerBeat;
+		numMeasures = data.numMeasures;
+	}
+
+	if (typeof window !== 'undefined') {
+		const hash = window.location.hash.slice(1);
+		if (hash) {
+			const decompressed = hash ? (LZString.decompressFromEncodedURIComponent(hash) ?? hash) : '';
+			if (decompressed) {
+				const state = deserializeState(decompressed);
+				applyState(state);
+			} else {
+				console.error('Failed to deserialize from hash');
+				reset();
+			}
+		} else {
+			reset();
+		}
+	} else {
+		reset();
+	}
 
 	let timeoutId: number | null = null; // browser internal for the step scheduler
 	let _audioCtxCache: AudioContext | null = null; // browser internal
 
-	const keys = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 	const chromatic = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 	const scales: Record<Scale, number[]> = {
@@ -682,6 +756,18 @@
 		return () => {
 			document.body.style.cursor = '';
 		};
+	});
+
+	$effect(() => {
+		if (typeof window === 'undefined') return;
+		serializeState();
+		let timeout: number;
+		timeout = window.setTimeout(() => {
+			const json = serializeState();
+			const compressed = LZString.compressToEncodedURIComponent(json);
+			replaceState(window.location.pathname + window.location.search + '#' + compressed, {});
+		}, 400);
+		return () => clearTimeout(timeout);
 	});
 
 	$effect(() => {
