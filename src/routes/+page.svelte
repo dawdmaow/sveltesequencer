@@ -14,15 +14,18 @@
 	const MAX_STEPS_PER_BEAT = 16;
 	const MIN_MEASURES = 1;
 	const MAX_MEASURES = 8;
+	const MIN_PATTERN_ID = 0;
 	const MAX_PATTERNS = 8;
-	const PATTERN_IDS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+
+	type SynthId = number;
+	type PatternId = number;
 
 	interface Step {
 		pitches: boolean[];
 	}
 
 	interface Synth {
-		id: string;
+		id: SynthId;
 		name: string;
 		oscType: OscillatorType;
 		volume: number;
@@ -31,7 +34,7 @@
 	}
 
 	interface Pattern {
-		id: string;
+		id: PatternId;
 		layers: Step[][];
 	}
 
@@ -41,12 +44,12 @@
 		}));
 	}
 
-	function createPattern(id: string, beats: number, steps: number): Pattern {
+	function createPattern(patternId: PatternId, beats: number, steps: number): Pattern {
 		const clampedBeats = clampBeatsPerMeasure(beats);
 		const clampedSteps = clampStepsPerBeat(steps);
 		const stepsCount = clampedBeats * clampedSteps;
 		return {
-			id,
+			id: patternId,
 			layers: [createStepLayer(stepsCount), createStepLayer(stepsCount)]
 		};
 	}
@@ -67,7 +70,7 @@
 		| 'Chromatic';
 
 	let patterns = $state<Pattern[]>([]);
-	let patternIdSequence = $state<string[]>([]);
+	let sequence = $state<PatternId[]>([]);
 	let selectedSequenceIndex = $state(0);
 	let isPlaying = $state(false);
 	let currentStep = $state(0); // TODO: this should be local; need to store current sequence index as well (and give it to playStep())
@@ -78,10 +81,7 @@
 	let key = $state('C');
 	let scale = $state<Scale>('Natural Minor');
 	let allowNonScaleNotes = $state(true);
-	let synths = $state<Synth[]>([
-		{ id: '1', name: 'Synth 1', oscType: 'square', volume: 0.3, attackMs: 10, releaseMs: 100 },
-		{ id: '2', name: 'Synth 2', oscType: 'sine', volume: 0.2, attackMs: 5, releaseMs: 80 }
-	]);
+	let synths = $state<Synth[]>([]);
 	let selectedSynthIndex = $state(0);
 	let isPainting = $state(false);
 	let paintTargetState = $state(true);
@@ -95,11 +95,11 @@
 	let dragLastPositions = $state<Array<{ step: number; pitch: number }>>([]);
 	let dragOverwrittenNotes = $state<Array<{ step: number; pitch: number }>>([]);
 
-	let selectedPatternId = $derived(patternIdSequence[selectedSequenceIndex] ?? PATTERN_IDS[0]);
+	let selectedPatternId = $derived(sequence[selectedSequenceIndex] ?? MIN_PATTERN_ID);
 
 	let displayedPatternId = $derived(
 		isPlaying
-			? (patternIdSequence[Math.floor(currentStep / stepsPerPattern())] ?? PATTERN_IDS[0])
+			? (sequence[Math.floor(currentStep / stepsPerPattern())] ?? MIN_PATTERN_ID)
 			: selectedPatternId
 	);
 
@@ -110,16 +110,18 @@
 	}
 
 	function reset() {
-		patterns = PATTERN_IDS.map((id) => createPattern(id, 4, 4));
-		patternIdSequence = ['A'];
+		patterns = Array.from({ length: MAX_PATTERNS }, (_, i) =>
+			createPattern(MIN_PATTERN_ID + i, 4, 4)
+		);
+		sequence = [0];
 		selectedSequenceIndex = 0;
 		selectedNotes = new Set();
 		key = 'C';
 		scale = 'Natural Minor';
 		allowNonScaleNotes = true;
 		synths = [
-			{ id: '1', name: 'Synth 1', oscType: 'square', volume: 0.3, attackMs: 10, releaseMs: 100 },
-			{ id: '2', name: 'Synth 2', oscType: 'sine', volume: 0.2, attackMs: 5, releaseMs: 80 }
+			{ id: 0, name: 'Synth 1', oscType: 'square', volume: 0.3, attackMs: 10, releaseMs: 100 },
+			{ id: 1, name: 'Synth 2', oscType: 'sine', volume: 0.2, attackMs: 5, releaseMs: 80 }
 		];
 		selectedSynthIndex = 0;
 		bpm = 120;
@@ -255,7 +257,7 @@
 		return beats * steps;
 	}
 
-	function getPatternColor(id: string): string {
+	function getPatternColor(patternId: PatternId): string {
 		const colors = [
 			'bg-blue-600',
 			'bg-emerald-600',
@@ -266,22 +268,21 @@
 			'bg-pink-600',
 			'bg-indigo-600'
 		];
-		const index = PATTERN_IDS.indexOf(id);
+		const index = patternId;
 		return index >= 0 && index < colors.length ? colors[index] : 'bg-slate-600';
 	}
 
 	function cyclePatternAtPosition(seqIndex: number, direction: 1 | -1) {
-		if (seqIndex >= patternIdSequence.length) return;
-		const currentId = patternIdSequence[seqIndex];
-		const currentIndex = PATTERN_IDS.indexOf(currentId);
-		const nextIndex = (currentIndex + direction + PATTERN_IDS.length) % PATTERN_IDS.length;
-		const nextId = PATTERN_IDS[nextIndex];
-		patternIdSequence[seqIndex] = nextId;
+		if (seqIndex >= sequence.length) return;
+		const currentId = sequence[seqIndex];
+		const nextId =
+			((currentId - MIN_PATTERN_ID + direction + MAX_PATTERNS) % MAX_PATTERNS) + MIN_PATTERN_ID;
+		sequence[seqIndex] = nextId;
 	}
 
 	function totalSteps(): number {
 		const stepsPerPat = stepsPerPattern();
-		return patternIdSequence.length * stepsPerPat;
+		return sequence.length * stepsPerPat;
 	}
 
 	function midiToFreq(midi: number) {
@@ -475,11 +476,11 @@
 		const sequenceIndex = Math.floor(step / stepsPerPat);
 		const stepInPattern = step % stepsPerPat;
 
-		if (sequenceIndex >= patternIdSequence.length) {
+		if (sequenceIndex >= sequence.length) {
 			return;
 		}
 
-		const patternId = patternIdSequence[sequenceIndex];
+		const patternId = sequence[sequenceIndex];
 		const pattern = patterns.find((p) => p.id === patternId);
 		if (!pattern) {
 			return;
@@ -839,8 +840,8 @@
 								{@const currentStepInPattern = currentStep % stepsPerPat}
 								{@const isPlayingThisStep =
 									isPlaying &&
-									currentPatternIndex < patternIdSequence.length &&
-									patternIdSequence[currentPatternIndex] === displayedPatternId &&
+									currentPatternIndex < sequence.length &&
+									sequence[currentPatternIndex] === displayedPatternId &&
 									currentStepInPattern === stepIndex}
 								{@const isDisabled = !allowNonScaleNotes && !isInScale(pitchIndex)}
 								{@const hasNote = column.pitches[pitchIndex]}
@@ -876,7 +877,7 @@
 			<div class="flex items-center gap-2 text-xs text-slate-400">
 				<span class="text-slate-300">Sequence</span>
 				<div class="flex items-center gap-1.5">
-					{#each patternIdSequence as patternId, seqIndex (seqIndex)}
+					{#each sequence as patternId, seqIndex (seqIndex)}
 						{@const isPlayingThis =
 							isPlaying && Math.floor(currentStep / stepsPerPattern()) === seqIndex}
 						{@const isSelected = selectedSequenceIndex === seqIndex}
@@ -909,7 +910,7 @@
 							>
 								▲
 							</button>
-							<span class="text-sm font-semibold text-white">{patternId}</span>
+							<span class="text-sm font-semibold text-white">{patternId + 1}</span>
 							<button
 								type="button"
 								on:click={(e) => {
@@ -923,11 +924,11 @@
 							</button>
 						</div>
 					{/each}
-					{#if patternIdSequence.length < MAX_MEASURES}
+					{#if sequence.length < MAX_MEASURES}
 						<button
 							type="button"
 							on:click={() => {
-								patternIdSequence.push(PATTERN_IDS[0]);
+								sequence.push(selectedPatternId);
 							}}
 							class="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs hover:bg-slate-800"
 							title="Add to sequence"
@@ -935,13 +936,13 @@
 							+
 						</button>
 					{/if}
-					{#if patternIdSequence.length > 1}
+					{#if sequence.length > 1}
 						<button
 							type="button"
 							on:click={() => {
-								patternIdSequence = patternIdSequence.slice(0, -1);
-								if (selectedSequenceIndex >= patternIdSequence.length) {
-									selectedSequenceIndex = patternIdSequence.length - 1;
+								sequence = sequence.slice(0, -1);
+								if (selectedSequenceIndex >= sequence.length) {
+									selectedSequenceIndex = sequence.length - 1;
 									if (selectedSequenceIndex < 0) {
 										selectedSequenceIndex = 0;
 									}
